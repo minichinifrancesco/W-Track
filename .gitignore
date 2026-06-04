@@ -1,0 +1,29 @@
+# Dipendenze
+node_modules/
+
+# Build artifacts (NestJS e Expo)
+/server/dist/
+.expo/
+/mobile/dist/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Environment Variables (Sicurezza)
+.env
+.env.*
+!.env.example
+
+# Database locale e Logs
+*.sqlite
+*.sqlite-journal
+logs
+*.log
+npm-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db

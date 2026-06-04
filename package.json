@@ -1,0 +1,9 @@
+{
+  "name": "w-note",
+  "private": true,
+  "workspaces": [
+    "mobile",
+    "server"
+  ]
+  
+}
