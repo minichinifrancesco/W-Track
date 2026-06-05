@@ -4,6 +4,8 @@
   "workspaces": [
     "mobile",
     "server"
-  ]
-  
+  ],
+  "devDependencies": {
+    "@types/jest": "^30.0.0"
+  }
 }
