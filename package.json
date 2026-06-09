@@ -5,6 +5,15 @@
     "mobile",
     "server"
   ],
+  "scripts": {
+    "start": "npm --prefix mobile run start --",
+    "android": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/expo-android.ps1",
+    "ios": "npm --prefix mobile run ios --",
+    "web": "npm --prefix mobile run web --",
+    "server:dev": "npm --prefix server run dev --",
+    "server:build": "npm --prefix server run build --",
+    "db:generate": "npm --prefix server run db:generate --"
+  },
   "devDependencies": {
     "@types/jest": "^30.0.0"
   }
