@@ -1,0 +1,28 @@
+import { Body, Controller, Get, Put, Req, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '../auth/auth.guard';
+import type { AuthenticatedRequest } from '../auth/auth.guard';
+import { UserDataService } from './user-data.service';
+
+@UseGuards(AuthGuard)
+@Controller('me/data')
+export class UserDataController {
+  constructor(private readonly userDataService: UserDataService) {}
+
+  @Get()
+  getData(@Req() request: AuthenticatedRequest) {
+    return this.userDataService.getData(request.user);
+  }
+
+  @Put()
+  saveData(
+    @Req() request: AuthenticatedRequest,
+    @Body()
+    body: {
+      workouts?: unknown;
+      exercises?: unknown;
+      history?: unknown;
+    },
+  ) {
+    return this.userDataService.saveData(request.user, body);
+  }
+}

@@ -11,7 +11,7 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main.js",
     "dev": "npm run db:generate && npm run start:dev",
     "setup": "npm install && npm run db:generate && npm run db:migrate:init",
     "db:generate": "prisma generate",

@@ -10,6 +10,7 @@ export default function LoginScreen({
   setPassword,
   handleLogin,
   handleRegister,
+  authLoading,
 }) {
   const isDarkMode = useColorScheme() === 'dark';
   const styles = getStyles(isDarkMode);
@@ -40,14 +41,22 @@ export default function LoginScreen({
             secureTextEntry
           />
 
-          <TouchableOpacity style={styles.primaryButton} onPress={handleLogin}>
-            <Text style={styles.primaryButtonText}>Accedi</Text>
+          <TouchableOpacity
+            style={[styles.primaryButton, authLoading && { opacity: 0.7 }]}
+            onPress={handleLogin}
+            disabled={authLoading}>
+            <Text style={styles.primaryButtonText}>
+              {authLoading ? 'Attendi...' : 'Accedi'}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={handleRegister}>
-            <Text style={styles.secondaryButtonText}>Registrati</Text>
+            style={[styles.secondaryButton, authLoading && { opacity: 0.7 }]}
+            onPress={handleRegister}
+            disabled={authLoading}>
+            <Text style={styles.secondaryButtonText}>
+              {authLoading ? 'Attendi...' : 'Registrati'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

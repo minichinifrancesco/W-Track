@@ -1,53 +1,74 @@
+PRAGMA foreign_keys=OFF;
+
 -- CreateTable
-CREATE TABLE "User" (
+CREATE TABLE "users" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "name" TEXT NOT NULL,
-    "surname" TEXT NOT NULL,
+    "surname" TEXT,
+    "age" INTEGER,
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "registrationDate" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "gender" TEXT,
     "birthDate" DATETIME,
-    "weight" REAL,
-    "height" REAL
+    "weightKg" REAL,
+    "heightCm" REAL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- CreateTable
-CREATE TABLE "WorkoutPlan" (
+CREATE TABLE "user_app_data" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "workouts" TEXT NOT NULL DEFAULT '[]',
+    "exercises" TEXT NOT NULL DEFAULT '[]',
+    "history" TEXT NOT NULL DEFAULT '[]',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "userId" INTEGER NOT NULL,
+    CONSTRAINT "user_app_data_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "workout_plans" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "name" TEXT NOT NULL,
     "description" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "userId" INTEGER NOT NULL,
-    CONSTRAINT "WorkoutPlan_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT "workout_plans_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
-CREATE TABLE "Exercise" (
+CREATE TABLE "exercises" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "name" TEXT NOT NULL,
     "description" TEXT,
     "muscleGroup" TEXT NOT NULL,
     "type" TEXT NOT NULL DEFAULT 'BASE',
-    "userId" INTEGER,
-    CONSTRAINT "Exercise_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- CreateTable
-CREATE TABLE "WorkoutPlanExercise" (
+CREATE TABLE "workout_plan_exercises" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "order" INTEGER NOT NULL,
-    "repetitions" INTEGER NOT NULL,
     "setsNumber" INTEGER NOT NULL,
+    "repsNumber" INTEGER NOT NULL,
+    "restSeconds" INTEGER NOT NULL DEFAULT 60,
     "workoutPlanId" INTEGER NOT NULL,
     "exerciseId" INTEGER NOT NULL,
-    CONSTRAINT "WorkoutPlanExercise_workoutPlanId_fkey" FOREIGN KEY ("workoutPlanId") REFERENCES "WorkoutPlan" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT "WorkoutPlanExercise_exerciseId_fkey" FOREIGN KEY ("exerciseId") REFERENCES "Exercise" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "workout_plan_exercises_workoutPlanId_fkey" FOREIGN KEY ("workoutPlanId") REFERENCES "workout_plans" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "workout_plan_exercises_exerciseId_fkey" FOREIGN KEY ("exerciseId") REFERENCES "exercises" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- CreateTable
-CREATE TABLE "Workout" (
+CREATE TABLE "workouts" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "date" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "startTime" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -57,21 +78,55 @@ CREATE TABLE "Workout" (
     "notes" TEXT,
     "userId" INTEGER NOT NULL,
     "workoutPlanId" INTEGER NOT NULL,
-    CONSTRAINT "Workout_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT "Workout_workoutPlanId_fkey" FOREIGN KEY ("workoutPlanId") REFERENCES "WorkoutPlan" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "workouts_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "workouts_workoutPlanId_fkey" FOREIGN KEY ("workoutPlanId") REFERENCES "workout_plans" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- CreateTable
-CREATE TABLE "PerformedSet" (
+CREATE TABLE "executed_sets" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "repetitions" INTEGER NOT NULL,
-    "weightKg" REAL NOT NULL,
+    "setNumber" INTEGER NOT NULL,
+    "repsDone" INTEGER NOT NULL,
+    "weightKg" REAL,
     "notes" TEXT,
     "workoutId" INTEGER NOT NULL,
-    "planExerciseId" INTEGER NOT NULL,
-    CONSTRAINT "PerformedSet_workoutId_fkey" FOREIGN KEY ("workoutId") REFERENCES "Workout" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT "PerformedSet_planExerciseId_fkey" FOREIGN KEY ("planExerciseId") REFERENCES "WorkoutPlanExercise" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+    "workoutPlanExerciseId" INTEGER NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "executed_sets_workoutId_fkey" FOREIGN KEY ("workoutId") REFERENCES "workouts" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "executed_sets_workoutPlanExerciseId_fkey" FOREIGN KEY ("workoutPlanExerciseId") REFERENCES "workout_plan_exercises" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "user_app_data_userId_key" ON "user_app_data"("userId");
+
+-- CreateIndex
+CREATE INDEX "workout_plans_userId_idx" ON "workout_plans"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "exercises_name_muscleGroup_key" ON "exercises"("name", "muscleGroup");
+
+-- CreateIndex
+CREATE INDEX "workout_plan_exercises_workoutPlanId_idx" ON "workout_plan_exercises"("workoutPlanId");
+
+-- CreateIndex
+CREATE INDEX "workout_plan_exercises_exerciseId_idx" ON "workout_plan_exercises"("exerciseId");
+
+-- CreateIndex
+CREATE INDEX "workouts_userId_idx" ON "workouts"("userId");
+
+-- CreateIndex
+CREATE INDEX "workouts_workoutPlanId_idx" ON "workouts"("workoutPlanId");
+
+-- CreateIndex
+CREATE INDEX "executed_sets_workoutId_idx" ON "executed_sets"("workoutId");
+
+-- CreateIndex
+CREATE INDEX "executed_sets_workoutPlanExerciseId_idx" ON "executed_sets"("workoutPlanExerciseId");
+
+PRAGMA foreign_keys=ON;

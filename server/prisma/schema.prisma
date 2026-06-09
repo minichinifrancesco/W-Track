@@ -15,6 +15,7 @@ model User {
   id               Int      @id @default(autoincrement())
   name             String
   surname          String?
+  age              Int?
   email            String   @unique
   password         String
   registrationDate DateTime @default(now())
@@ -26,11 +27,26 @@ model User {
 
   workoutPlans     WorkoutPlan[]
   workouts         Workout[]
+  appData          UserAppData?
 
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   @@map("users")
+}
+
+model UserAppData {
+  id        Int      @id @default(autoincrement())
+  workouts  String   @default("[]")
+  exercises String   @default("[]")
+  history   String   @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_app_data")
 }
 
 model WorkoutPlan {
