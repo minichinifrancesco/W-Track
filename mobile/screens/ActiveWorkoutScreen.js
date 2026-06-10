@@ -11,7 +11,7 @@ import {
   useColorScheme,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import { logoCompact } from '../constants';
+import { logoCompact, COLORS } from '../constants';
 import { getStyles } from '../styles/styles';
 import DraggableExerciseList from '../components/DraggableExerciseList';
 import HelpButton from '../components/HelpModal';

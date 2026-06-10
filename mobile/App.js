@@ -4,13 +4,6 @@ import { Alert, useColorScheme, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { getStyles } from './styles/styles';
-import {
-  getUserData,
-  login as loginRequest,
-  register as registerRequest,
-  saveUserData,
-  updateProfile,
-} from './services/api';
 
 // Constants & Helper functions
 import { PRESET_EXERCISES } from './constants';
@@ -46,9 +39,6 @@ function MainApp() {
   const [currentScreen, setCurrentScreen] = useState('login');
 
   const [user, setUser] = useState(null);
-  const [authToken, setAuthToken] = useState(null);
-  const [isHydrating, setIsHydrating] = useState(true);
-  const [authLoading, setAuthLoading] = useState(false);
   const [workouts, setWorkouts] = useState([]);
   const [exercises, setExercises] = useState(PRESET_EXERCISES);
   const [history, setHistory] = useState([]);
@@ -121,7 +111,7 @@ function MainApp() {
   const [templateDuration, setTemplateDuration] = useState('');
 
   useEffect(() => {
-    loadStoredSession();
+    loadData();
   }, []);
 
   useEffect(() => {
@@ -144,164 +134,10 @@ function MainApp() {
   }, [currentScreen, isPaused]);
 
   useEffect(() => {
-    if (user && authToken && !isHydrating) saveData();
-  }, [user, authToken, workouts, exercises, history, isHydrating]);
-
-  const getStorageUserId = (targetUser = user) =>
-    targetUser?.id ? String(targetUser.id) : targetUser?.email || 'guest';
-
-  const getUserStorageKey = (targetUser, key) =>
-    `user:${getStorageUserId(targetUser)}:${key}`;
-
-  const readJsonArray = async (key) => {
-    const value = await AsyncStorage.getItem(key);
-    if (!value) return null;
-
-    try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed : null;
-    } catch {
-      return null;
-    }
-  };
-
-  const normalizeExercises = (value) => {
-    const parsed = Array.isArray(value) ? value : [];
-    const presetCount = PRESET_EXERCISES.filter((e) => !e.custom).length;
-    const needsReset =
-      parsed.length === 0 ||
-      !parsed.some((ex) => ex.name === 'Adductor machine') ||
-      parsed.filter((ex) => !ex.custom).length < presetCount;
-
-    if (!needsReset) return parsed;
-
-    const customExercises = parsed.filter((ex) => ex.custom);
-    return [...PRESET_EXERCISES, ...customExercises];
-  };
-
-  const hasAnyAppData = (data) =>
-    ['workouts', 'exercises', 'history'].some(
-      (key) => Array.isArray(data?.[key]) && data[key].length > 0
-    );
-
-  const saveLocalUserData = async (targetUser, data) => {
-    await AsyncStorage.setItem(
-      getUserStorageKey(targetUser, 'workouts'),
-      JSON.stringify(data.workouts || [])
-    );
-    await AsyncStorage.setItem(
-      getUserStorageKey(targetUser, 'exercises'),
-      JSON.stringify(data.exercises || [])
-    );
-    await AsyncStorage.setItem(
-      getUserStorageKey(targetUser, 'history'),
-      JSON.stringify(data.history || [])
-    );
-  };
-
-  const loadLocalUserData = async (targetUser) => ({
-    workouts: (await readJsonArray(getUserStorageKey(targetUser, 'workouts'))) || [],
-    exercises:
-      (await readJsonArray(getUserStorageKey(targetUser, 'exercises'))) || [],
-    history: (await readJsonArray(getUserStorageKey(targetUser, 'history'))) || [],
-  });
-
-  const loadLegacyData = async () => ({
-    workouts: (await readJsonArray('workouts')) || [],
-    exercises: (await readJsonArray('exercises')) || [],
-    history: (await readJsonArray('history')) || [],
-  });
-
-  const applyUserProfile = (targetUser) => {
-    setProfileName(targetUser?.name || '');
-    setProfileAge(targetUser?.age ? String(targetUser.age) : '');
-    setProfileHeight(targetUser?.height ? String(targetUser.height) : '');
-    setProfileWeight(targetUser?.weight ? String(targetUser.weight) : '');
-  };
-
-  const saveSession = async (token, targetUser) => {
-    await AsyncStorage.setItem(
-      'authSession',
-      JSON.stringify({ token, user: targetUser })
-    );
-  };
+    if (user) saveData();
+  }, [user, workouts, exercises, history]);
 
   const saveData = async () => {
-    const data = {
-      workouts,
-      exercises: normalizeExercises(exercises),
-      history,
-    };
-
-    try {
-      await saveLocalUserData(user, data);
-      await saveSession(authToken, user);
-      await saveUserData(authToken, data);
-    } catch (error) {
-      console.error('Errore salvataggio dati:', error.message || error);
-    }
-  };
-
-  const loadStoredSession = async () => {
-    try {
-      const sessionData = await AsyncStorage.getItem('authSession');
-      if (!sessionData) {
-        setExercises(PRESET_EXERCISES);
-        return;
-      }
-
-      const session = JSON.parse(sessionData);
-      if (!session?.token || !session?.user) return;
-
-      setIsHydrating(true);
-      setAuthToken(session.token);
-      setUser(session.user);
-      applyUserProfile(session.user);
-      setCurrentScreen('home');
-      await loadUserData(session.token, session.user, true);
-    } catch (error) {
-      console.error('Errore caricamento sessione:', error.message || error);
-      await AsyncStorage.removeItem('authSession');
-    } finally {
-      setIsHydrating(false);
-    }
-  };
-
-  const loadUserData = async (token, targetUser, allowLegacyMigration = false) => {
-    let serverData = null;
-    try {
-      serverData = await getUserData(token);
-    } catch (error) {
-      console.error('Errore caricamento dati server:', error.message || error);
-    }
-
-    const localData = await loadLocalUserData(targetUser);
-    const legacyData = allowLegacyMigration ? await loadLegacyData() : null;
-    const selectedData =
-      (hasAnyAppData(serverData) && serverData) ||
-      (hasAnyAppData(localData) && localData) ||
-      (hasAnyAppData(legacyData) && legacyData) ||
-      {};
-
-    const nextData = {
-      workouts: Array.isArray(selectedData.workouts) ? selectedData.workouts : [],
-      exercises: normalizeExercises(selectedData.exercises),
-      history: Array.isArray(selectedData.history) ? selectedData.history : [],
-    };
-
-    setWorkouts(nextData.workouts);
-    setExercises(nextData.exercises);
-    setHistory(nextData.history);
-    await saveLocalUserData(targetUser, nextData);
-
-    try {
-      await saveUserData(token, nextData);
-    } catch (error) {
-      console.error('Errore sincronizzazione iniziale:', error.message || error);
-    }
-  };
-
-  const saveLegacyData = async () => {
     try {
       await AsyncStorage.setItem('workouts', JSON.stringify(workouts));
       // Safety guard: never overwrite exercises with an empty array.
@@ -419,29 +255,7 @@ function MainApp() {
     return Math.round(totalSeconds / 3600);
   };
 
-  const completeAuth = async ({ token, user: nextUser }, migrateLegacyData) => {
-    setIsHydrating(true);
-    try {
-      setAuthToken(token);
-      setUser(nextUser);
-      applyUserProfile(nextUser);
-      await saveSession(token, nextUser);
-      setCurrentScreen('home');
-      setPassword('');
-      loadUserData(token, nextUser, migrateLegacyData)
-        .catch((error) => {
-          console.error('Errore sync post-login:', error.message || error);
-        })
-        .finally(() => {
-          setIsHydrating(false);
-        });
-    } catch (error) {
-      setIsHydrating(false);
-      throw error;
-    }
-  };
-
-  const handleLogin = async () => {
+  const handleLogin = () => {
     if (!email || !password) {
       Alert.alert('Errore', 'Compila tutti i campi');
       return;
@@ -450,19 +264,12 @@ function MainApp() {
       Alert.alert('Errore', 'Formato email non valido');
       return;
     }
-
-    setAuthLoading(true);
-    try {
-      const authResponse = await loginRequest(email, password);
-      await completeAuth(authResponse, true);
-    } catch (error) {
-      Alert.alert('Errore login', error.message || 'Login non riuscito');
-    } finally {
-      setAuthLoading(false);
-    }
+    const loggedUser = { email };
+    setUser(loggedUser);
+    setCurrentScreen('home');
   };
 
-  const handleRegister = async () => {
+  const handleRegister = () => {
     if (!email || !password) {
       Alert.alert('Errore', 'Compila tutti i campi');
       return;
@@ -475,28 +282,16 @@ function MainApp() {
       Alert.alert('Errore', 'Password deve essere di almeno 6 caratteri');
       return;
     }
-
-    setAuthLoading(true);
-    try {
-      const authResponse = await registerRequest(email, password);
-      await completeAuth(authResponse, true);
-    } catch (error) {
-      Alert.alert('Errore registrazione', error.message || 'Registrazione non riuscita');
-    } finally {
-      setAuthLoading(false);
-    }
+    const newUser = { email };
+    setUser(newUser);
+    setCurrentScreen('home');
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     setUser(null);
-    setAuthToken(null);
     setCurrentScreen('login');
     setEmail('');
     setPassword('');
-    setWorkouts([]);
-    setExercises(PRESET_EXERCISES);
-    setHistory([]);
-    await AsyncStorage.removeItem('authSession');
   };
 
   const createWorkout = () => {
@@ -1143,29 +938,17 @@ function MainApp() {
     setShowEditProfileModal(true);
   };
 
-  const saveProfile = async () => {
-    const profile = {
+  const saveProfile = () => {
+    const updatedUser = {
+      ...(user || {}),
+      email: user?.email || email,
       name: profileName.trim(),
       age: profileAge ? parseInt(profileAge, 10) : null,
       height: profileHeight ? parseInt(profileHeight, 10) : null,
       weight: profileWeight ? parseFloat(profileWeight) : null,
     };
-
-    try {
-      const response = authToken
-        ? await updateProfile(authToken, profile)
-        : null;
-      const updatedUser = response?.user || {
-        ...(user || {}),
-        email: user?.email || email,
-        ...profile,
-      };
-      setUser(updatedUser);
-      if (authToken) await saveSession(authToken, updatedUser);
-      setShowEditProfileModal(false);
-    } catch (error) {
-      Alert.alert('Errore profilo', error.message || 'Salvataggio non riuscito');
-    }
+    setUser(updatedUser);
+    setShowEditProfileModal(false);
   };
 
   const groupExercisesByMuscle = () => {
@@ -1188,7 +971,6 @@ function MainApp() {
           setPassword={setPassword}
           handleLogin={handleLogin}
           handleRegister={handleRegister}
-          authLoading={authLoading}
         />
       )}
       {currentScreen === 'home' && (

@@ -1,5 +1,14 @@
-import React, { useState, useMemo } from 'react';
-import { SafeAreaView, View, Image, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, useColorScheme } from 'react-native';
+import React, { useState, useRef, useMemo } from 'react';
+import {
+  SafeAreaView,
+  View,
+  Image,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  useColorScheme,
+} from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { logoCompact } from '../constants';
 import { getStyles, getThemeColors } from '../styles/styles';
@@ -20,36 +29,29 @@ export default function ExercisesScreen({
   const styles = getStyles(isDarkMode);
   const C = getThemeColors(isDarkMode);
 
-  // Dynamically resolve localStyles inside ExercisesScreen component or compute inline
-  const localStyles = {
-    filterContainer: {
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      backgroundColor: styles.header.backgroundColor,
-      borderBottomWidth: 1,
-      borderBottomColor: styles.header.borderBottomColor || C.border,
-    },
-  };
   const [search, setSearch] = useState('');
   const [selectedMuscle, setSelectedMuscle] = useState(null);
   const [selectedStyle, setSelectedStyle] = useState(null);
 
+  // closeSignal: ogni volta che incrementa, il FilterDropdown corrispondente si chiude
+  const [closeMuscleSignal, setCloseMuscleSignal] = useState(0);
+  const [closeCategorySignal, setCloseCategorySignal] = useState(0);
+
   const filteredExercises = useMemo(() => {
     return exercises.filter((ex) => {
-      // 1. Search Query
       if (search.trim() !== '') {
         const query = search.toLowerCase();
         if (!ex.name.toLowerCase().includes(query)) return false;
       }
-      // 2. Muscle Group (Gruppo muscolare)
-      if (selectedMuscle && ex.muscleGroup !== selectedMuscle) {
-        return false;
-      }
-      // 3. Category (Categoria: Macchinari, Corpo libero, Pesi)
+      if (selectedMuscle && ex.muscleGroup !== selectedMuscle) return false;
       if (selectedStyle) {
         if (selectedStyle === 'Macchinari' && ex.subcategory !== 'Macchinari') return false;
         if (selectedStyle === 'Corpo libero' && ex.subcategory !== 'Corpo libero') return false;
-        if (selectedStyle === 'Pesi' && ex.subcategory !== 'Pesi liberi' && ex.subcategory !== 'Con pesi') return false;
+        if (
+          selectedStyle === 'Pesi' &&
+          ex.subcategory !== 'Pesi liberi' &&
+          ex.subcategory !== 'Con pesi'
+        ) return false;
       }
       return true;
     });
@@ -64,8 +66,11 @@ export default function ExercisesScreen({
     return res;
   }, [filteredExercises]);
 
+  const borderColor = isDarkMode ? '#1e293b' : '#e5e7eb';
+
   return (
     <SafeAreaView style={styles.container}>
+      {/* ── Header ── */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Image source={logoCompact} style={styles.logoSmall} />
@@ -77,47 +82,75 @@ export default function ExercisesScreen({
         <HelpButton screen="exercises" />
       </View>
 
+      {/* ── Bottone nuovo esercizio ── */}
       <TouchableOpacity
         style={styles.addExerciseButton}
         onPress={() => setShowCustomExercise(true)}>
         <Text style={styles.primaryButtonText}>+ Nuovo esercizio</Text>
       </TouchableOpacity>
 
-      {/* Filtering Section container */}
-      <View style={localStyles.filterContainer}>
-        {/* Search Input */}
-        <TextInput
-          style={[styles.inputSmall, { marginBottom: 8 }]}
-          placeholder="Cerca esercizio..."
-          value={search}
-          onChangeText={setSearch}
-          placeholderTextColor="#94a3b8"
-        />
+      {/*
+        ScrollView unico: filtri + lista.
+        Il menu a tendina cresce in-flow dentro lo scroll → sempre visibile.
+      */}
+      <ScrollView
+        style={styles.content}
+        keyboardShouldPersistTaps="always"
+        contentContainerStyle={{ paddingBottom: 20 }}>
 
-        {/* Filter Lists */}
-        <View style={{ gap: 6 }}>
-          <FilterDropdown
-            label="Gruppo muscolare"
-            icon="💪"
-            options={['Cardio', 'Gambe e glutei', 'Petto', 'Schiena', 'Spalle', 'Bicipiti', 'Tricipiti', 'Addome e core', 'Polpacci', 'Glutei specifici', 'Full body']}
-            selected={selectedMuscle}
-            allLabel="Tutti i muscoli"
-            onSelect={setSelectedMuscle}
+        {/* ── Sezione filtri ── */}
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingTop: 10,
+            paddingBottom: 8,
+            borderBottomWidth: 1,
+            borderBottomColor: borderColor,
+            marginBottom: 8,
+          }}>
+          {/* Campo ricerca */}
+          <TextInput
+            style={[styles.inputSmall, { marginBottom: 8 }]}
+            placeholder="Cerca esercizio..."
+            value={search}
+            onChangeText={setSearch}
+            placeholderTextColor="#94a3b8"
           />
-          <FilterDropdown
-            label="Categoria"
-            icon="🏷️"
-            options={['Macchinari', 'Corpo libero', 'Pesi']}
-            selected={selectedStyle}
-            allLabel="Tutte le categorie"
-            onSelect={setSelectedStyle}
-          />
+
+          {/* Due bottoni filtro affiancati */}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flex: 1 }}>
+              <FilterDropdown
+                label="Gruppo muscolare"
+                options={[
+                  'Cardio', 'Gambe e glutei', 'Petto', 'Schiena', 'Spalle',
+                  'Bicipiti', 'Tricipiti', 'Addome e core', 'Polpacci',
+                  'Glutei specifici', 'Full body',
+                ]}
+                selected={selectedMuscle}
+                onSelect={setSelectedMuscle}
+                closeSignal={closeMuscleSignal}
+                onOpen={() => setCloseCategorySignal((n) => n + 1)}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <FilterDropdown
+                label="Categoria"
+                options={['Macchinari', 'Corpo libero', 'Pesi']}
+                selected={selectedStyle}
+                onSelect={setSelectedStyle}
+                closeSignal={closeCategorySignal}
+                onOpen={() => setCloseMuscleSignal((n) => n + 1)}
+              />
+            </View>
+          </View>
         </View>
-      </View>
 
-      <ScrollView style={styles.content}>
+        {/* ── Lista esercizi ── */}
         {Object.keys(grouped).length === 0 ? (
-          <Text style={{ textAlign: 'center', color: '#6b7280', marginTop: 40 }}>Nessun esercizio trovato</Text>
+          <Text style={{ textAlign: 'center', color: '#6b7280', marginTop: 40 }}>
+            Nessun esercizio trovato
+          </Text>
         ) : (
           Object.keys(grouped).map((muscle) => (
             <View key={muscle} style={styles.muscleGroupSection}>
@@ -128,8 +161,7 @@ export default function ExercisesScreen({
                   <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={() => openExerciseDescription(ex)}
-                    style={styles.exerciseListItem}
-                  >
+                    style={styles.exerciseListItem}>
                     <Text style={styles.exerciseListName}>{ex.name}</Text>
                     {ex.custom ? (
                       <Text style={styles.customBadge}>Custom</Text>
