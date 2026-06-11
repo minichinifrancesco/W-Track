@@ -5,15 +5,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { getStyles } from './styles/styles';
 import {
+  createCustomExercise as createCustomExerciseRequest,
+  deleteCustomExercise as deleteCustomExerciseRequest,
+  getExercises,
   getUserData,
   login as loginRequest,
   register as registerRequest,
   saveUserData,
   updateProfile,
 } from './services/api';
-
-// Constants & Helper functions
-import { PRESET_EXERCISES } from './constants';
 
 // Screens
 import LoginScreen from './screens/LoginScreen';
@@ -50,7 +50,8 @@ function MainApp() {
   const [isHydrating, setIsHydrating] = useState(true);
   const [authLoading, setAuthLoading] = useState(false);
   const [workouts, setWorkouts] = useState([]);
-  const [exercises, setExercises] = useState(PRESET_EXERCISES);
+  const [baseExercises, setBaseExercises] = useState([]);
+  const [exercises, setExercises] = useState([]);
   const [history, setHistory] = useState([]);
 
   const [activeWorkout, setActiveWorkout] = useState(null);
@@ -121,7 +122,7 @@ function MainApp() {
   const [templateDuration, setTemplateDuration] = useState('');
 
   useEffect(() => {
-    loadStoredSession();
+    bootstrapApp();
   }, []);
 
   useEffect(() => {
@@ -165,33 +166,61 @@ function MainApp() {
     }
   };
 
-  const normalizeExercises = (value) => {
-    const parsed = Array.isArray(value) ? value : [];
-    const presetCount = PRESET_EXERCISES.filter((e) => !e.custom).length;
-    const needsReset =
-      parsed.length === 0 ||
-      !parsed.some((ex) => ex.name === 'Adductor machine') ||
-      parsed.filter((ex) => !ex.custom).length < presetCount;
+  const isCustomExercise = (exercise) =>
+    exercise?.custom === true || exercise?.source === 'CUSTOM';
 
-    if (!needsReset) return parsed;
+  const getCustomExercises = (value) =>
+    Array.isArray(value) ? value.filter(isCustomExercise) : [];
 
-    const customExercises = parsed.filter((ex) => ex.custom);
-    return [...PRESET_EXERCISES, ...customExercises];
+  const mergeExerciseCatalog = (catalog = [], savedExercises = []) => {
+    const merged = [...catalog, ...getCustomExercises(savedExercises)];
+    const seen = new Set();
+    return merged.filter((exercise) => {
+      const key = `${exercise.id}:${exercise.name}:${exercise.muscleGroup}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
+  const normalizeExercises = (value, catalog = baseExercises) => {
+    return mergeExerciseCatalog(catalog, value);
+  };
+
+  const loadExerciseCatalog = async (token) => {
+    try {
+      const catalog = await getExercises(token);
+      const safeCatalog = Array.isArray(catalog) ? catalog : [];
+      if (!token) {
+        setBaseExercises(safeCatalog);
+      }
+      setExercises(safeCatalog);
+      return safeCatalog;
+    } catch (error) {
+      console.error('Errore caricamento catalogo esercizi:', error.message || error);
+      return token ? baseExercises : [];
+    }
+  };
+
+  const bootstrapApp = async () => {
+    const catalog = await loadExerciseCatalog();
+    await loadStoredSession(catalog);
   };
 
   const hasAnyAppData = (data) =>
-    ['workouts', 'exercises', 'history'].some(
-      (key) => Array.isArray(data?.[key]) && data[key].length > 0
-    );
+    (Array.isArray(data?.workouts) && data.workouts.length > 0) ||
+    getCustomExercises(data?.exercises).length > 0 ||
+    (Array.isArray(data?.history) && data.history.length > 0);
 
   const saveLocalUserData = async (targetUser, data) => {
+    const customExercises = getCustomExercises(data.exercises);
     await AsyncStorage.setItem(
       getUserStorageKey(targetUser, 'workouts'),
       JSON.stringify(data.workouts || [])
     );
     await AsyncStorage.setItem(
       getUserStorageKey(targetUser, 'exercises'),
-      JSON.stringify(data.exercises || [])
+      JSON.stringify(customExercises)
     );
     await AsyncStorage.setItem(
       getUserStorageKey(targetUser, 'history'),
@@ -229,7 +258,7 @@ function MainApp() {
   const saveData = async () => {
     const data = {
       workouts,
-      exercises: normalizeExercises(exercises),
+      exercises: getCustomExercises(exercises),
       history,
     };
 
@@ -242,11 +271,11 @@ function MainApp() {
     }
   };
 
-  const loadStoredSession = async () => {
+  const loadStoredSession = async (catalog = baseExercises) => {
     try {
       const sessionData = await AsyncStorage.getItem('authSession');
       if (!sessionData) {
-        setExercises(PRESET_EXERCISES);
+        setExercises(catalog);
         return;
       }
 
@@ -258,7 +287,13 @@ function MainApp() {
       setUser(session.user);
       applyUserProfile(session.user);
       setCurrentScreen('home');
-      await loadUserData(session.token, session.user, true);
+      const authenticatedCatalog = await loadExerciseCatalog(session.token);
+      await loadUserData(
+        session.token,
+        session.user,
+        true,
+        authenticatedCatalog.length > 0 ? authenticatedCatalog : catalog
+      );
     } catch (error) {
       console.error('Errore caricamento sessione:', error.message || error);
       await AsyncStorage.removeItem('authSession');
@@ -267,7 +302,12 @@ function MainApp() {
     }
   };
 
-  const loadUserData = async (token, targetUser, allowLegacyMigration = false) => {
+  const loadUserData = async (
+    token,
+    targetUser,
+    allowLegacyMigration = false,
+    catalog = baseExercises
+  ) => {
     let serverData = null;
     try {
       serverData = await getUserData(token);
@@ -285,7 +325,7 @@ function MainApp() {
 
     const nextData = {
       workouts: Array.isArray(selectedData.workouts) ? selectedData.workouts : [],
-      exercises: normalizeExercises(selectedData.exercises),
+      exercises: normalizeExercises(selectedData.exercises, catalog),
       history: Array.isArray(selectedData.history) ? selectedData.history : [],
     };
 
@@ -295,24 +335,12 @@ function MainApp() {
     await saveLocalUserData(targetUser, nextData);
 
     try {
-      await saveUserData(token, nextData);
+      await saveUserData(token, {
+        ...nextData,
+        exercises: getCustomExercises(nextData.exercises),
+      });
     } catch (error) {
       console.error('Errore sincronizzazione iniziale:', error.message || error);
-    }
-  };
-
-  const saveLegacyData = async () => {
-    try {
-      await AsyncStorage.setItem('workouts', JSON.stringify(workouts));
-      // Safety guard: never overwrite exercises with an empty array.
-      // If exercises is empty it means loadData() hasn't resolved yet — skip saving.
-      if (exercises && exercises.length > 0) {
-        await AsyncStorage.setItem('exercises', JSON.stringify(exercises));
-      }
-      await AsyncStorage.setItem('history', JSON.stringify(history));
-      await AsyncStorage.setItem('user', JSON.stringify(user));
-    } catch (error) {
-      console.error('Errore salvataggio dati:', error);
     }
   };
 
@@ -325,55 +353,6 @@ function MainApp() {
     );
     setSelectedDescriptionExercise(fullExercise || exercise);
     setShowDescriptionModal(true);
-  };
-
-  const loadData = async () => {
-    try {
-      const workoutsData = await AsyncStorage.getItem('workouts');
-      const exercisesData = await AsyncStorage.getItem('exercises');
-      const historyData = await AsyncStorage.getItem('history');
-      const userData = await AsyncStorage.getItem('user');
-
-      if (workoutsData) setWorkouts(JSON.parse(workoutsData));
-
-      if (exercisesData) {
-        const parsed = JSON.parse(exercisesData);
-        // Reset if parsed is empty, or if it's missing the 'Adductor machine' exercise
-        // (which was added in the latest preset update). Allow custom exercises (length > PRESET_EXERCISES.length).
-        const presetCount = PRESET_EXERCISES.filter(e => !e.custom).length;
-        const needsReset =
-          !parsed ||
-          !Array.isArray(parsed) ||
-          parsed.length === 0 ||
-          !parsed.some(ex => ex.name === 'Adductor machine') ||
-          parsed.filter(ex => !ex.custom).length < presetCount;
-        if (needsReset) {
-          // Preserve any custom exercises the user created and merge with fresh presets
-          const customExercises = Array.isArray(parsed) ? parsed.filter(ex => ex.custom) : [];
-          const merged = [...PRESET_EXERCISES, ...customExercises];
-          setExercises(merged);
-          await AsyncStorage.setItem('exercises', JSON.stringify(merged));
-        } else {
-          setExercises(parsed);
-        }
-      } else {
-        setExercises(PRESET_EXERCISES);
-        await AsyncStorage.setItem('exercises', JSON.stringify(PRESET_EXERCISES));
-      }
-
-      if (historyData) setHistory(JSON.parse(historyData));
-      if (userData) {
-        const parsed = JSON.parse(userData);
-        setUser(parsed);
-        setCurrentScreen('home');
-        setProfileName(parsed.name || '');
-        setProfileAge(parsed.age ? String(parsed.age) : '');
-        setProfileHeight(parsed.height ? String(parsed.height) : '');
-        setProfileWeight(parsed.weight ? String(parsed.weight) : '');
-      }
-    } catch (error) {
-      console.error('Errore caricamento dati:', error);
-    }
   };
 
   const formatWorkoutTime = (totalSeconds) => {
@@ -428,7 +407,8 @@ function MainApp() {
       await saveSession(token, nextUser);
       setCurrentScreen('home');
       setPassword('');
-      loadUserData(token, nextUser, migrateLegacyData)
+      const catalog = await loadExerciseCatalog(token);
+      loadUserData(token, nextUser, migrateLegacyData, catalog)
         .catch((error) => {
           console.error('Errore sync post-login:', error.message || error);
         })
@@ -494,7 +474,7 @@ function MainApp() {
     setEmail('');
     setPassword('');
     setWorkouts([]);
-    setExercises(PRESET_EXERCISES);
+    setExercises(baseExercises);
     setHistory([]);
     await AsyncStorage.removeItem('authSession');
   };
@@ -529,7 +509,7 @@ function MainApp() {
     ]);
   };
 
-  const createCustomExercise = () => {
+  const createCustomExercise = async () => {
     if (!customExerciseName.trim() || !customMuscleGroup.trim()) {
       Alert.alert(
         'Errore',
@@ -538,23 +518,50 @@ function MainApp() {
       return;
     }
 
-    const newExercise = {
-      id: Date.now(),
+    if (!authToken) {
+      Alert.alert('Errore', 'Effettua il login per creare un esercizio');
+      return;
+    }
+
+    const exercise = {
       name: customExerciseName.trim(),
       muscleGroup: customMuscleGroup,
       type: customExerciseType || 'weight_reps',
-      custom: true,
     };
 
-    setExercises((prev) => [...prev, newExercise]);
-    setCustomExerciseName('');
-    setCustomMuscleGroup('');
-    setCustomExerciseType('weight_reps');
-    setShowCustomExercise(false);
+    try {
+      const savedExercise = await createCustomExerciseRequest(
+        authToken,
+        exercise
+      );
+      setExercises((prev) => [...prev, savedExercise]);
+      setCustomExerciseName('');
+      setCustomMuscleGroup('');
+      setCustomExerciseType('weight_reps');
+      setShowCustomExercise(false);
+    } catch (error) {
+      Alert.alert(
+        'Errore esercizio',
+        error.message || 'Creazione esercizio non riuscita'
+      );
+    }
   };
 
-  const deleteCustomExercise = (exerciseId) => {
-    setExercises((prev) => prev.filter((ex) => ex.id !== exerciseId));
+  const deleteCustomExercise = async (exerciseId) => {
+    if (!authToken) {
+      Alert.alert('Errore', 'Effettua il login per eliminare un esercizio');
+      return;
+    }
+
+    try {
+      await deleteCustomExerciseRequest(authToken, exerciseId);
+      setExercises((prev) => prev.filter((ex) => ex.id !== exerciseId));
+    } catch (error) {
+      Alert.alert(
+        'Errore esercizio',
+        error.message || 'Eliminazione esercizio non riuscita'
+      );
+    }
   };
 
   const startWorkout = (workout) => {

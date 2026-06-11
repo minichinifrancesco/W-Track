@@ -6,7 +6,7 @@ datasource db {
   provider = "sqlite"
 }
 
-enum ExerciseType {
+enum ExerciseSource {
   BASE
   CUSTOM
 }
@@ -28,6 +28,7 @@ model User {
   workoutPlans     WorkoutPlan[]
   workouts         Workout[]
   appData          UserAppData?
+  customExercises  Exercise[]
 
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -72,14 +73,20 @@ model Exercise {
   name         String
   description  String?
   muscleGroup  String
-  type         ExerciseType @default(BASE)
+  subcategory  String?
+  trackingType String       @default("weight_reps")
+  source       ExerciseSource @default(BASE) @map("type")
+
+  userId       Int?
+  user         User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   planExercises WorkoutPlanExercise[]
 
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  @@unique([name, muscleGroup])
+  @@index([source])
+  @@index([userId])
   @@map("exercises")
 }
 

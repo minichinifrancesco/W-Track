@@ -112,6 +112,28 @@ export function register(email, password) {
   });
 }
 
+export function getExercises(token) {
+  return request('/exercises', {
+    method: 'GET',
+    token,
+  });
+}
+
+export function createCustomExercise(token, exercise) {
+  return request('/exercises', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(exercise),
+  });
+}
+
+export function deleteCustomExercise(token, exerciseId) {
+  return request(`/exercises/${exerciseId}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
 export function getUserData(token) {
   return request('/me/data', {
     method: 'GET',
