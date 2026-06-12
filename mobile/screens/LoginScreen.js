@@ -1,5 +1,6 @@
 import React from 'react';
-import { SafeAreaView, View, Image, Text, TextInput, TouchableOpacity, useColorScheme } from 'react-native';
+import { SafeAreaView, View, Image, Text, TextInput, TouchableOpacity } from 'react-native';
+import { useEffectiveDark } from '../context/SettingsContext';
 import { logoFull } from '../constants';
 import { getStyles, getThemeColors } from '../styles/styles';
 
@@ -11,7 +12,7 @@ export default function LoginScreen({
   handleLogin,
   handleRegister,
 }) {
-  const isDarkMode = useColorScheme() === 'dark';
+  const isDarkMode = useEffectiveDark();
   const styles = getStyles(isDarkMode);
   const C = getThemeColors(isDarkMode);
 

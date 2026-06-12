@@ -3,9 +3,9 @@ import {
   View,
   Text,
   Pressable,
-  useColorScheme,
 } from 'react-native';
 import { getThemeColors } from '../styles/styles';
+import { useEffectiveDark } from '../context/SettingsContext';
 
 /**
  * FilterDropdown — stato locale, Pressable per massima compatibilità.
@@ -26,7 +26,7 @@ export default function FilterDropdown({
   closeSignal = 0,
   onOpen,
 }) {
-  const isDarkMode = useColorScheme() === 'dark';
+  const isDarkMode = useEffectiveDark();
   const C = getThemeColors(isDarkMode);
   const [open, setOpen] = useState(false);
 

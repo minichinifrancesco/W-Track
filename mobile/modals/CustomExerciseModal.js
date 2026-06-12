@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, useColorScheme } from 'react-native';
+import React from 'react';
+import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { getAvailableMuscleGroups } from '../constants';
 import { getStyles, getThemeColors } from '../styles/styles';
+import { useEffectiveDark } from '../context/SettingsContext';
 
 const EXERCISE_TYPES = [
   { key: 'weight_reps', label: 'Peso + Rip.' },
@@ -18,13 +19,23 @@ export default function CustomExerciseModal({
   setCustomMuscleGroup,
   customExerciseType,
   setCustomExerciseType,
+  customExerciseDescription,
+  setCustomExerciseDescription,
   exercises,
   createCustomExercise,
 }) {
-  const isDarkMode = useColorScheme() === 'dark';
+  const isDarkMode = useEffectiveDark();
   const styles = getStyles(isDarkMode);
   const C = getThemeColors(isDarkMode);
   const muscleGroups = getAvailableMuscleGroups(exercises);
+
+  const handleCancel = () => {
+    setShowCustomExercise(false);
+    setCustomExerciseName('');
+    setCustomMuscleGroup('');
+    setCustomExerciseType('weight_reps');
+    setCustomExerciseDescription && setCustomExerciseDescription('');
+  };
 
   return (
     <Modal visible={showCustomExercise} animationType="slide" transparent>
@@ -33,9 +44,10 @@ export default function CustomExerciseModal({
           <Text style={styles.modalTitle}>Nuovo Esercizio</Text>
 
           <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Nome */}
             <TextInput
               style={styles.input}
-              placeholder="Nome esercizio"
+              placeholder="Nome esercizio *"
               placeholderTextColor={C.textMuted}
               value={customExerciseName}
               onChangeText={setCustomExerciseName}
@@ -94,17 +106,38 @@ export default function CustomExerciseModal({
                 </TouchableOpacity>
               ))}
             </View>
+
+            {/* Descrizione (opzionale) */}
+            <Text style={[styles.sectionLabel, { marginBottom: 6, marginTop: 14, fontWeight: '700', color: C.textDark }]}>
+              Descrizione / Note esecuzione{' '}
+              <Text style={{ fontWeight: '400', color: C.textMuted, fontSize: 12 }}>(opzionale)</Text>
+            </Text>
+            <Text style={{ fontSize: 12, color: C.textMuted, marginBottom: 8, lineHeight: 17 }}>
+              Aggiungi istruzioni, consigli di esecuzione o note personali. Saranno visibili toccando ℹ️ sull'esercizio.
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  minHeight: 90,
+                  textAlignVertical: 'top',
+                  paddingTop: 10,
+                  fontSize: 13,
+                },
+              ]}
+              placeholder="Es: Mantieni la schiena dritta, scendi lentamente, respira in modo controllato..."
+              placeholderTextColor={C.textMuted}
+              value={customExerciseDescription}
+              onChangeText={setCustomExerciseDescription}
+              multiline
+              numberOfLines={4}
+            />
           </ScrollView>
 
           <View style={[styles.modalButtons, { marginTop: 12 }]}>
             <TouchableOpacity
               style={[styles.secondaryButton, styles.modalButtonFlex]}
-              onPress={() => {
-                setShowCustomExercise(false);
-                setCustomExerciseName('');
-                setCustomMuscleGroup('');
-                setCustomExerciseType('weight_reps');
-              }}>
+              onPress={handleCancel}>
               <Text style={styles.secondaryButtonText}>Annulla</Text>
             </TouchableOpacity>
 

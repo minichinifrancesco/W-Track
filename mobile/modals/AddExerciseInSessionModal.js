@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, useColorScheme } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { useEffectiveDark } from '../context/SettingsContext';
 import { getStyles } from '../styles/styles';
 import ExerciseDescriptionModal from '../components/ExerciseDescriptionModal';
 import FilterDropdown from '../components/FilterDropdown';
@@ -21,30 +22,34 @@ export default function AddExerciseInSessionModal({
   sessionDuration,
   setSessionDuration,
   addExerciseToActiveWorkout,
+  addMultipleExercisesToActiveWorkout,
+  replaceExerciseInActiveWorkout,
+  replaceTargetExerciseId,
+  setReplaceTargetExerciseId,
   exercises = [],
 }) {
-  const isDarkMode = useColorScheme() === 'dark';
+  const isDarkMode = useEffectiveDark();
   const styles = getStyles(isDarkMode);
   const [search, setSearch] = useState('');
   const [selectedMuscle, setSelectedMuscle] = useState(null);
   const [selectedStyle, setSelectedStyle] = useState(null);
 
-  // Local state for description modal to avoid nested modal overlapping issues on mobile
+  // Multi-select state: array of exercise objects in selection order
+  const [selectedExercises, setSelectedExercises] = useState([]);
+
+  // Local state for description modal
   const [localSelectedExercise, setLocalSelectedExercise] = useState(null);
   const [localShowDescription, setLocalShowDescription] = useState(false);
 
+  const isReplaceMode = !!replaceTargetExerciseId;
+
   const filteredExercises = useMemo(() => {
     return exercises.filter((ex) => {
-      // 1. Search Query
       if (search.trim() !== '') {
         const query = search.toLowerCase();
         if (!ex.name.toLowerCase().includes(query)) return false;
       }
-      // 2. Muscle Group (Gruppo muscolare)
-      if (selectedMuscle && ex.muscleGroup !== selectedMuscle) {
-        return false;
-      }
-      // 3. Category (Categoria: Macchinari, Corpo libero, Pesi)
+      if (selectedMuscle && ex.muscleGroup !== selectedMuscle) return false;
       if (selectedStyle) {
         if (selectedStyle === 'Macchinari' && ex.subcategory !== 'Macchinari') return false;
         if (selectedStyle === 'Corpo libero' && ex.subcategory !== 'Corpo libero') return false;
@@ -63,16 +68,57 @@ export default function AddExerciseInSessionModal({
     return res;
   }, [filteredExercises]);
 
-  const ex = sessionSelectedExercise;
-  const exType = ex?.type || 'weight_reps';
-  const isTimed = exType === 'timed';
-  const isRepsOnly = exType === 'reps';
-
   const handleOpenLocalDescription = (item) => {
     const fullEx = exercises.find(e => e.id === item.id || e.name === item.name);
     setLocalSelectedExercise(fullEx || item);
     setLocalShowDescription(true);
   };
+
+  const toggleExerciseSelection = (e) => {
+    if (isReplaceMode) {
+      // In replace mode, only single selection
+      setSelectedExercises([e]);
+      return;
+    }
+    setSelectedExercises((prev) => {
+      const exists = prev.find((x) => x.id === e.id);
+      if (exists) {
+        return prev.filter((x) => x.id !== e.id);
+      } else {
+        return [...prev, e];
+      }
+    });
+  };
+
+  const getSelectionIndex = (eId) => {
+    const idx = selectedExercises.findIndex((x) => x.id === eId);
+    return idx === -1 ? null : idx + 1;
+  };
+
+  const handleClose = () => {
+    setShowAddExerciseInSession(false);
+    setSessionSelectedExercise(null);
+    setSelectedExercises([]);
+    setReplaceTargetExerciseId && setReplaceTargetExerciseId(null);
+    setSearch('');
+    setSelectedMuscle(null);
+    setSelectedStyle(null);
+  };
+
+  const handleConfirm = () => {
+    if (selectedExercises.length === 0) return;
+    if (isReplaceMode) {
+      replaceExerciseInActiveWorkout(replaceTargetExerciseId, selectedExercises[0]);
+    } else {
+      addMultipleExercisesToActiveWorkout(selectedExercises);
+    }
+    setSelectedExercises([]);
+    setSearch('');
+    setSelectedMuscle(null);
+    setSelectedStyle(null);
+  };
+
+  const isGreen = '#86B749';
 
   return (
     <Modal
@@ -81,7 +127,15 @@ export default function AddExerciseInSessionModal({
       transparent>
       <View style={styles.modalOverlay}>
         <View style={styles.modalContentLarge}>
-          <Text style={styles.modalTitle}>Aggiungi esercizio</Text>
+          <Text style={styles.modalTitle}>
+            {isReplaceMode ? 'Sostituisci esercizio' : 'Aggiungi esercizi'}
+          </Text>
+
+          {!isReplaceMode && (
+            <Text style={{ fontSize: 12, color: '#64748b', textAlign: 'center', marginBottom: 8 }}>
+              Tocca gli esercizi per selezionarli. Verranno aggiunti nell'ordine di selezione.
+            </Text>
+          )}
 
           {/* Search bar */}
           <TextInput
@@ -122,27 +176,42 @@ export default function AddExerciseInSessionModal({
 
                   {grouped[muscle].map((e) => {
                     const typeLabel = e.type === 'timed' ? '⏱' : e.type === 'reps' ? '🔁' : '🏋️‍♂️';
+                    const selIdx = getSelectionIndex(e.id);
+                    const isSelected = selIdx !== null;
+
                     return (
                       <View
                         key={e.id}
                         style={[
                           styles.selectableExercise,
-                          sessionSelectedExercise?.id === e.id && styles.selectedExercise,
+                          isSelected && styles.selectedExercise,
                           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 6, paddingVertical: 6 }
                         ]}
                       >
                         <TouchableOpacity
-                          style={{ flex: 1, paddingVertical: 4 }}
-                          onPress={() => {
-                            setSessionSelectedExercise(e);
-                            setSessionSets('');
-                            setSessionReps('');
-                            setSessionWeight('');
-                            setSessionRestTime('60');
-                            setSessionDuration('');
-                          }}
+                          style={{ flex: 1, paddingVertical: 4, flexDirection: 'row', alignItems: 'center' }}
+                          onPress={() => toggleExerciseSelection(e)}
                         >
-                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          {/* Selection badge */}
+                          <View style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: 12,
+                            borderWidth: 2,
+                            borderColor: isSelected ? isGreen : '#cbd5e1',
+                            backgroundColor: isSelected ? isGreen : 'transparent',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            marginRight: 8,
+                            flexShrink: 0,
+                          }}>
+                            {isSelected && (
+                              <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>
+                                {isReplaceMode ? '✓' : selIdx}
+                              </Text>
+                            )}
+                          </View>
+                          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={[styles.exerciseListName, { flex: 1 }]}>{e.name}</Text>
                             <Text style={{ fontSize: 12, marginRight: 8 }}>{typeLabel}</Text>
                           </View>
@@ -171,40 +240,53 @@ export default function AddExerciseInSessionModal({
             )}
           </ScrollView>
 
-          {ex ? (
-            <View style={styles.exerciseForm}>
-              <Text style={styles.selectedExerciseText}>{ex.name}</Text>
-              <Text style={[styles.viewExerciseDetails, { marginBottom: 12, textAlign: 'center' }]}>
-                {isTimed
-                  ? 'Verrà aggiunto con una serie a 0 min.'
-                  : isRepsOnly
-                  ? 'Verrà aggiunto con una serie a 0 reps.'
-                  : 'Verrà aggiunto con una serie a 0 kg / 0 reps.'}
+          {selectedExercises.length > 0 && (
+            <View style={{
+              backgroundColor: '#f0fdf4',
+              borderRadius: 10,
+              padding: 10,
+              marginVertical: 8,
+              borderWidth: 1,
+              borderColor: '#86B749',
+            }}>
+              <Text style={{ color: '#15803d', fontWeight: '700', fontSize: 13, marginBottom: 4 }}>
+                {isReplaceMode
+                  ? `Sostituisci con: ${selectedExercises[0].name}`
+                  : `${selectedExercises.length} esercizi selezionati:`}
               </Text>
-
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={addExerciseToActiveWorkout}>
-                <Text style={styles.primaryButtonText}>Aggiungi</Text>
-              </TouchableOpacity>
+              {!isReplaceMode && selectedExercises.map((ex, i) => (
+                <Text key={ex.id} style={{ color: '#166534', fontSize: 12 }}>
+                  {i + 1}. {ex.name}
+                </Text>
+              ))}
             </View>
-          ) : null}
+          )}
+
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              { marginBottom: 0, opacity: selectedExercises.length === 0 ? 0.4 : 1 }
+            ]}
+            onPress={handleConfirm}
+            disabled={selectedExercises.length === 0}
+          >
+            <Text style={styles.primaryButtonText}>
+              {isReplaceMode
+                ? 'Sostituisci'
+                : selectedExercises.length > 0
+                  ? `Aggiungi ${selectedExercises.length} esercizi`
+                  : 'Seleziona esercizi'}
+            </Text>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.secondaryButton}
-            onPress={() => {
-              setShowAddExerciseInSession(false);
-              setSessionSelectedExercise(null);
-              setSearch('');
-              setSelectedMuscle(null);
-              setSelectedStyle(null);
-            }}>
+            onPress={handleClose}>
             <Text style={styles.secondaryButtonText}>Chiudi</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Rendered inside this modal so it displays on top of it on both iOS and Android */}
       <ExerciseDescriptionModal
         visible={localShowDescription}
         exercise={localSelectedExercise}

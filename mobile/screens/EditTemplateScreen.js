@@ -1,5 +1,6 @@
 import React from 'react';
-import { SafeAreaView, View, Text, TouchableOpacity, TextInput, useColorScheme } from 'react-native';
+import { SafeAreaView, View, Text, TouchableOpacity, TextInput } from 'react-native';
+import { useEffectiveDark, useSettings } from '../context/SettingsContext';
 import { Swipeable } from 'react-native-gesture-handler';
 import { getStyles } from '../styles/styles';
 import DraggableExerciseList from '../components/DraggableExerciseList';
@@ -26,7 +27,8 @@ export default function EditTemplateScreen({
   addSetToTemplateExercise,
   openExerciseDescription,
 }) {
-  const isDarkMode = useColorScheme() === 'dark';
+  const isDarkMode = useEffectiveDark();
+  const { settings } = useSettings();
   const styles = getStyles(isDarkMode);
   if (!templateWorkout) return null;
 
@@ -243,6 +245,79 @@ export default function EditTemplateScreen({
                         </Swipeable>
                       ))}
                     </>
+                  )}
+
+                  {/* Rest time editor */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 8, paddingHorizontal: 4 }}>
+                    <Text style={{ fontSize: 13, color: isDarkMode ? '#94a3b8' : '#64748b', fontWeight: '600', marginRight: 6 }}>
+                      Timer recupero:
+                    </Text>
+                    <TextInput
+                      style={{
+                        borderWidth: 1,
+                        borderColor: isDarkMode ? '#334155' : '#cbd5e1',
+                        borderRadius: 6,
+                        paddingVertical: 2,
+                        paddingHorizontal: 8,
+                        fontSize: 13,
+                        color: isDarkMode ? '#f8fafc' : '#0f172a',
+                        width: 55,
+                        textAlign: 'center',
+                        fontWeight: '600',
+                        backgroundColor: isDarkMode ? '#1e293b' : '#f8fafc',
+                      }}
+                      keyboardType="numeric"
+                      value={String(ex.restTime ?? 60)}
+                      onChangeText={(val) => {
+                        const parsed = parseInt(val, 10) || 0;
+                        setTemplateWorkout((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            exercises: prev.exercises.map((e) =>
+                              e.id === ex.id ? { ...e, restTime: parsed } : e
+                            ),
+                          };
+                        });
+                      }}
+                    />
+                    <Text style={{ fontSize: 13, color: isDarkMode ? '#94a3b8' : '#64748b', marginLeft: 4 }}>
+                      secondi
+                    </Text>
+                  </View>
+
+                  {/* Note per esercizio */}
+                  {settings.showExerciseNotes !== false && (
+                    <View style={{ marginTop: 10, marginBottom: 8, paddingHorizontal: 4 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: isDarkMode ? '#cbd5e1' : '#475569', marginBottom: 4 }}>Note esercizio:</Text>
+                      <TextInput
+                        style={{
+                          backgroundColor: isDarkMode ? '#1e293b' : '#f8fafc',
+                          borderWidth: 1,
+                          borderColor: isDarkMode ? '#334155' : '#e2e8f0',
+                          borderRadius: 8,
+                          padding: 8,
+                          fontSize: 13,
+                          color: isDarkMode ? '#f8fafc' : '#0f172a',
+                          minHeight: 40,
+                        }}
+                        placeholder="Aggiungi una nota (es. impugnatura, altezza sedile...)"
+                        placeholderTextColor={isDarkMode ? '#64748b' : '#94a3b8'}
+                        value={ex.note || ''}
+                        onChangeText={(val) => {
+                          setTemplateWorkout((prev) => {
+                            if (!prev) return prev;
+                            return {
+                              ...prev,
+                              exercises: prev.exercises.map((e) =>
+                                e.id === ex.id ? { ...e, note: val } : e
+                              ),
+                            };
+                          });
+                        }}
+                        multiline
+                      />
+                    </View>
                   )}
 
                   <TouchableOpacity

@@ -7,8 +7,8 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  useColorScheme,
 } from 'react-native';
+import { useEffectiveDark } from '../context/SettingsContext';
 import { Swipeable } from 'react-native-gesture-handler';
 import { logoCompact } from '../constants';
 import { getStyles, getThemeColors } from '../styles/styles';
@@ -25,7 +25,7 @@ export default function ExercisesScreen({
   openExerciseDescription,
   exercises = [],
 }) {
-  const isDarkMode = useColorScheme() === 'dark';
+  const isDarkMode = useEffectiveDark();
   const styles = getStyles(isDarkMode);
   const C = getThemeColors(isDarkMode);
 

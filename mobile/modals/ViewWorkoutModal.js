@@ -1,5 +1,6 @@
 import React from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, useColorScheme } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { useEffectiveDark } from '../context/SettingsContext';
 import { getStyles } from '../styles/styles';
 
 export default function ViewWorkoutModal({
@@ -7,7 +8,7 @@ export default function ViewWorkoutModal({
   setShowViewWorkout,
   selectedWorkout,
 }) {
-  const isDarkMode = useColorScheme() === 'dark';
+  const isDarkMode = useEffectiveDark();
   const styles = getStyles(isDarkMode);
   if (!selectedWorkout) return null;
 

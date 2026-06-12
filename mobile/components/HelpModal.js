@@ -19,8 +19,8 @@ const HELP_CONTENT = {
         body: 'Qui trovi tutte le schede che hai creato. Ogni scheda mostra il nome e il numero di esercizi al suo interno.',
       },
       {
-        heading: '+ Nuova scheda',
-        body: 'Premi il pulsante in alto a destra oppure il tasto ＋ in basso a destra per creare una nuova scheda. Potrai darle un nome e aggiungerci gli esercizi.',
+        heading: '+ Nuova scheda / ＋',
+        body: 'Premi il pulsante "+ Nuova scheda" in alto a destra oppure il tasto ＋ in basso a destra per creare una nuova scheda. Si aprirà direttamente la schermata di modifica con una scheda vuota: inserisci il nome (obbligatorio) e aggiungi gli esercizi, poi premi "Salva".',
       },
       {
         heading: 'Dettagli',
@@ -28,7 +28,7 @@ const HELP_CONTENT = {
       },
       {
         heading: 'Modifica',
-        body: "Apre l'editor della scheda dove puoi rinominare la scheda, aggiungere, rimuovere o riordinare gli esercizi e modificare le serie.",
+        body: "Apre l'editor della scheda dove puoi rinominare la scheda, aggiungere più esercizi in una volta, riordinare e modificare le serie.",
       },
       {
         heading: 'Inizia workout',
@@ -36,7 +36,7 @@ const HELP_CONTENT = {
       },
       {
         heading: 'Elimina scheda',
-        body: "Rimuove la scheda permanentemente. L'azione è confermata con un avviso prima di procedere.",
+        body: 'Trascina il riquadro della scheda verso sinistra (slide/swipe) per far apparire il pulsante rosso "Elimina" e rimuovere la scheda definitivamente.',
       },
     ],
   },
@@ -45,12 +45,12 @@ const HELP_CONTENT = {
     title: 'Sessione attiva',
     sections: [
       {
-        heading: 'Timer allenamento',
-        body: "Mostra il tempo trascorso dall'inizio della sessione. Puoi mettere in pausa o riprendere il conteggio con il pulsante \"Pausa / Riprendi\".",
+        heading: 'Timer allenamento (modificabile)',
+        body: "Mostra il tempo trascorso dall'inizio della sessione. Tocca il timer per modificarlo manualmente (formato HH:MM:SS). Puoi mettere in pausa o riprendere il conteggio con il pulsante \"Pausa / Riprendi\".",
       },
       {
-        heading: 'Statistiche',
-        body: 'Il pulsante "Statistiche" in alto apre un riepilogo delle serie già completate nella sessione, diviso per gruppo muscolare.',
+        heading: 'Stats 📊',
+        body: 'Il pulsante "Stats 📊" in alto apre un riepilogo delle serie già completate nella sessione, diviso per gruppo muscolare.',
       },
       {
         heading: 'Completare una serie',
@@ -65,12 +65,16 @@ const HELP_CONTENT = {
         body: 'Durante il recupero puoi sottrarre o aggiungere 15 secondi al countdown, oppure saltare direttamente il recupero con "Salta".',
       },
       {
-        heading: '+ Aggiungi serie',
-        body: "Aggiunge una nuova riga di serie all'esercizio. Scorri a sinistra su una serie per eliminarla.",
+        heading: '🔄 Sostituisci esercizio',
+        body: "Il pulsante 🔄 in alto a destra di ogni esercizio apre la selezione degli esercizi. Scegli quello sostitutivo e premi \"Sostituisci\": l'esercizio viene rimpiazzato mantenendo la posizione nella lista.",
       },
       {
-        heading: '+ Aggiungi esercizio',
-        body: 'Aggiunge un esercizio alla sessione corrente senza modificare la scheda originale.',
+        heading: '+ Aggiungi esercizi (multipli)',
+        body: 'Premi "+ Aggiungi esercizio" per aprire il selettore. Puoi toccare più esercizi per selezionarli: verranno aggiunti nell\'ordine in cui li hai toccati. Il badge numerico indica l\'ordine di aggiunta.',
+      },
+      {
+        heading: '+ Aggiungi serie',
+        body: "Aggiunge una nuova riga di serie all'esercizio. Scorri a sinistra su una serie per eliminarla.",
       },
       {
         heading: 'Riordinare esercizi',
@@ -79,6 +83,14 @@ const HELP_CONTENT = {
       {
         heading: 'Elimina esercizio',
         body: 'Scorri a sinistra sulla scheda di un esercizio per far apparire il pulsante "Elimina".',
+      },
+      {
+        heading: 'Note esercizio',
+        body: 'Puoi inserire una nota personalizzata per ciascun esercizio (es. configurazione macchina, sensazioni, impostazioni) direttamente dal campo di testo dedicato. Verrà salvata e visualizzata nel dettaglio storico.',
+      },
+      {
+        heading: 'Avviso valori anomali',
+        body: 'Se inserisci accidentalmente un peso o un numero di ripetizioni molto superiore (3x o più) rispetto alla serie precedente dello stesso esercizio, apparirà un avviso di sicurezza per evitare errori di battitura.',
       },
       {
         heading: 'Termina / Annulla',
@@ -91,16 +103,16 @@ const HELP_CONTENT = {
     title: 'Modifica scheda',
     sections: [
       {
-        heading: 'Rinominare la scheda',
-        body: 'Il campo "Nome:" in cima è modificabile direttamente: tocca il testo e digita il nuovo nome della scheda.',
+        heading: 'Nome scheda (obbligatorio)',
+        body: 'Il campo "Nome:" in cima è modificabile direttamente. Per le schede nuove il nome è obbligatorio: non puoi salvare senza averlo inserito.',
       },
       {
         heading: 'Salva',
-        body: 'Premi il pulsante verde "Salva" in alto a destra per salvare tutte le modifiche (nome incluso). Se esci senza salvare, le modifiche vengono scartate.',
+        body: 'Premi il pulsante verde "Salva" in alto a destra per salvare tutte le modifiche. Se esci senza salvare, le modifiche vengono scartate (per le schede nuove non viene creata nulla).',
       },
       {
-        heading: '+ Aggiungi esercizio',
-        body: 'Aggiunge un esercizio alla scheda. Puoi scegliere dalla lista predefinita o dagli esercizi personalizzati.',
+        heading: '+ Aggiungi esercizi (multipli)',
+        body: 'Tocca più esercizi nella lista per selezionarli tutti in una volta. Il badge numerico mostra l\'ordine di selezione. Premi "Aggiungi N esercizi" per confermare: verranno inseriti nell\'ordine in cui li hai selezionati.',
       },
       {
         heading: 'Modifica serie',
@@ -163,16 +175,28 @@ const HELP_CONTENT = {
     title: 'STORICO sessioni',
     sections: [
       {
+        heading: 'Barra di ricerca e filtri data',
+        body: 'Usa la barra di ricerca in alto per filtrare le sessioni per nome o per esercizi inclusi. Puoi anche filtrare inserendo le date "Da" e "A" (in formato GG/MM/AAAA) per mostrare solo i workout in quel periodo.',
+      },
+      {
         heading: 'Lista sessioni',
         body: 'Mostra tutte le sessioni di allenamento completate, con nome, data, numero di esercizi e durata totale.',
       },
       {
         heading: 'Dettaglio sessione',
-        body: 'Tocca una scheda per aprire il dettaglio completo della sessione con tutti i valori registrati per ogni serie.',
+        body: 'Tocca una scheda per aprire il dettaglio completo della sessione con tutti i valori registrati per ogni serie e le note di ciascun esercizio.',
       },
       {
         heading: 'Modifica sessione',
-        body: 'Scorri a destra su una sessione per modificare i dati registrati (peso, reps, minuti) direttamente dallo storico.',
+        body: 'Scorri a destra su una sessione per modificare i dati registrati (peso, reps, minuti e note per ogni esercizio). Puoi anche modificare la durata totale toccando il timer nella schermata di modifica.',
+      },
+      {
+        heading: 'Durata modificabile',
+        body: 'Nella schermata di modifica di una sessione trovi il timer ⏱ della durata. Toccalo per modificarlo manualmente in formato HH:MM:SS.',
+      },
+      {
+        heading: 'Nota generale workout nello storico',
+        body: 'Quando apri il dettaglio di un allenamento completato, troverai in alto un campo "Nota generale workout". È indipendente dall\'impostazione note degli esercizi ed è associato in modo unico e permanente a quella specifica sessione.',
       },
       {
         heading: 'Elimina sessione',
@@ -191,6 +215,30 @@ const HELP_CONTENT = {
       {
         heading: 'Statistiche generali',
         body: 'Riepilogo automatico calcolato dallo storico: sessioni totali completate, ore totali di allenamento, serie totali completate e numero di schede create.',
+      },
+      {
+        heading: '⚙️ Impostazioni',
+        body: 'Il pulsante dell\'ingranaggio ⚙️ in alto a destra apre le impostazioni dell\'app. Da qui puoi cambiare l\'unità di peso (kg / libbre), il tema (Chiaro / Scuro / Automatico), il timer di recupero predefinito e abilitare/disabilitare le note per esercizio.',
+      },
+      {
+        heading: 'Unità di peso (kg / lbs)',
+        body: 'Scegli se visualizzare i pesi in chilogrammi o in libbre. La conversione avviene automaticamente (1 kg ≈ 2.205 lbs). I dati sono sempre salvati in kg internamente.',
+      },
+      {
+        heading: 'Tema dell\'app',
+        body: '"Chiaro" forza sempre il tema chiaro. "Scuro" forza sempre il tema scuro. "Automatico" segue le impostazioni del dispositivo.',
+      },
+      {
+        heading: 'Timer recupero predefinito',
+        body: 'Imposta il tempo di recupero che verrà usato automaticamente quando aggiungi un nuovo esercizio (sia durante una sessione sia in modifica scheda). Puoi sempre modificarlo esercizio per esercizio toccando il badge colorato durante l\'allenamento.',
+      },
+      {
+        heading: 'Impostazione Note Esercizio',
+        body: 'Attiva o disattiva la visualizzazione del campo note degli esercizi in Allenamento Attivo e Modifica Scheda. Se disattivata, le note passate rimangono comunque visibili nello storico.',
+      },
+      {
+        heading: 'Notifiche fine recupero',
+        body: 'Attiva o disattiva in modo indipendente la vibrazione (feedback aptico) e/o il segnale acustico (suono) riprodotti al termine di ogni timer di recupero.',
       },
     ],
   },

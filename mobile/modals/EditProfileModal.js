@@ -1,5 +1,6 @@
 import React from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, useColorScheme } from 'react-native';
+import { Modal, View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { useEffectiveDark } from '../context/SettingsContext';
 import { getStyles, getThemeColors } from '../styles/styles';
 
 export default function EditProfileModal({
@@ -15,7 +16,7 @@ export default function EditProfileModal({
   setProfileWeight,
   saveProfile,
 }) {
-  const isDarkMode = useColorScheme() === 'dark';
+  const isDarkMode = useEffectiveDark();
   const styles = getStyles(isDarkMode);
   const C = getThemeColors(isDarkMode);
 

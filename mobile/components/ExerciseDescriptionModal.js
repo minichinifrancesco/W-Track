@@ -8,13 +8,25 @@ import {
   StyleSheet,
 } from 'react-native';
 import { COLORS } from '../constants';
+import { useEffectiveDark } from '../context/SettingsContext';
 
 export default function ExerciseDescriptionModal({
   visible,
   onClose,
   exercise,
 }) {
+  const isDark = useEffectiveDark();
+
   if (!exercise) return null;
+
+  const cardBg = isDark ? '#1e293b' : '#ffffff';
+  const textDark = isDark ? '#f1f5f9' : '#0f172a';
+  const textMuted = isDark ? '#94a3b8' : '#475569';
+  const headerText = isDark ? '#cbd5e1' : '#334155';
+  const badgeBg = isDark ? '#334155' : '#f1f5f9';
+  const badgeText = isDark ? '#94a3b8' : '#475569';
+  const backdropColor = isDark ? 'rgba(0,0,0,0.65)' : 'rgba(15, 23, 42, 0.45)';
+  const categoryColor = isDark ? '#4ade80' : COLORS.primaryDark;
 
   const getTypeText = (type) => {
     switch (type) {
@@ -28,6 +40,9 @@ export default function ExerciseDescriptionModal({
     }
   };
 
+  const hasDescription = exercise.description && exercise.description.trim().length > 0;
+  const isCustom = exercise.custom === true;
+
   return (
     <Modal
       visible={visible}
@@ -35,44 +50,65 @@ export default function ExerciseDescriptionModal({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={styles.backdrop}>
+      <View style={[styles.backdrop, { backgroundColor: backdropColor }]}>
         <TouchableOpacity
           style={StyleSheet.absoluteFillObject}
           activeOpacity={1}
           onPress={onClose}
         />
-        {/* Outer wrapper constrains the max height in the scene */}
-        <View style={styles.cardWrapper}>
+        <View style={[styles.cardWrapper, { backgroundColor: cardBg }]}>
           {/* Header */}
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.title}>{exercise.name}</Text>
-              <Text style={styles.category}>
+              <Text style={[styles.title, { color: textDark }]}>{exercise.name}</Text>
+              <Text style={[styles.category, { color: categoryColor }]}>
                 {exercise.muscleGroup}{exercise.subcategory ? ` • ${exercise.subcategory}` : ''}
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={styles.closeBtn}>✕</Text>
+              <Text style={[styles.closeBtn, { color: textMuted }]}>✕</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Type Badge */}
+          {/* Badges row */}
           <View style={styles.badgeContainer}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{getTypeText(exercise.type)}</Text>
+            <View style={[styles.badge, { backgroundColor: badgeBg }]}>
+              <Text style={[styles.badgeText, { color: badgeText }]}>{getTypeText(exercise.type)}</Text>
             </View>
+            {isCustom && (
+              <View style={[styles.badge, { backgroundColor: COLORS.primary + '20', marginLeft: 6 }]}>
+                <Text style={[styles.badgeText, { color: COLORS.primaryDark, fontWeight: '700' }]}>✦ Custom</Text>
+              </View>
+            )}
           </View>
 
-          {/* Description — uses flexShrink:1 so it expands to fill available space */}
+          {/* Description */}
           <ScrollView
             style={styles.scrollArea}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={true}
           >
-            <Text style={styles.descriptionHeader}>Istruzioni per l'esecuzione:</Text>
-            <Text style={styles.descriptionText}>
-              {exercise.description || 'Nessuna descrizione disponibile per questo esercizio.'}
-            </Text>
+            {hasDescription ? (
+              <>
+                <Text style={[styles.descriptionHeader, { color: headerText }]}>
+                  {isCustom ? '📝 Note / Istruzioni:' : 'Istruzioni per l\'esecuzione:'}
+                </Text>
+                <Text style={[styles.descriptionText, { color: textMuted }]}>
+                  {exercise.description}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.descriptionHeader, { color: headerText }]}>
+                  Istruzioni per l'esecuzione:
+                </Text>
+                <Text style={[styles.descriptionText, { color: textMuted }]}>
+                  {isCustom
+                    ? 'Nessuna descrizione aggiunta per questo esercizio personalizzato.\n\nPuoi aggiungere note di esecuzione quando crei nuovi esercizi custom.'
+                    : 'Nessuna descrizione disponibile per questo esercizio.'}
+                </Text>
+              </>
+            )}
           </ScrollView>
 
           {/* Action Button */}
@@ -88,16 +124,13 @@ export default function ExerciseDescriptionModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
-  // cardWrapper has a max height limit and uses flex column so children can flex properly
   cardWrapper: {
     width: '100%',
     maxHeight: '80%',
-    backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 22,
     shadowColor: '#000',
@@ -105,7 +138,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 24,
     elevation: 8,
-    // flex column so children can use flex
     flexDirection: 'column',
   },
   header: {
@@ -117,20 +149,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#0f172a',
     marginRight: 12,
   },
   category: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.primaryDark,
     marginTop: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   closeBtn: {
     fontSize: 18,
-    color: '#94a3b8',
     fontWeight: '700',
     padding: 4,
   },
@@ -139,7 +168,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   badge: {
-    backgroundColor: '#f1f5f9',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
@@ -147,9 +175,7 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#475569',
   },
-  // flexShrink:1 allows ScrollView to shrink if content is short, grow if long
   scrollArea: {
     flexShrink: 1,
     minHeight: 60,
@@ -160,12 +186,10 @@ const styles = StyleSheet.create({
   descriptionHeader: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#334155',
     marginBottom: 8,
   },
   descriptionText: {
     fontSize: 14,
-    color: '#475569',
     lineHeight: 22,
   },
   actionBtn: {

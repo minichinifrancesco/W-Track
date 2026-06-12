@@ -8,10 +8,11 @@ import {
   TextInput,
   Modal,
   Alert,
-  useColorScheme,
 } from 'react-native';
+import { useEffectiveDark, useSettings } from '../context/SettingsContext';
 import { Swipeable } from 'react-native-gesture-handler';
 import { logoCompact, COLORS } from '../constants';
+import { Ionicons } from '@expo/vector-icons';
 import { getStyles } from '../styles/styles';
 import DraggableExerciseList from '../components/DraggableExerciseList';
 import HelpButton from '../components/HelpModal';
@@ -66,10 +67,16 @@ export default function ActiveWorkoutScreen({
   finishWorkout,
   setCurrentScreen,
   openExerciseDescription,
+  setReplaceTargetExerciseId,
 }) {
-  const isDarkMode = useColorScheme() === 'dark';
+  const isDarkMode = useEffectiveDark();
+  const { settings } = useSettings();
   const styles = getStyles(isDarkMode);
   const [showStats, setShowStats] = useState(false);
+
+  // Editable workout timer state
+  const [editingWorkoutTime, setEditingWorkoutTime] = useState(false);
+  const [workoutTimeInput, setWorkoutTimeInput] = useState('');
 
   if (!activeWorkout) return null;
 
@@ -83,7 +90,32 @@ export default function ActiveWorkoutScreen({
     setSessionWeight('');
     setSessionRestTime('60');
     setSessionDuration('');
+    if (setReplaceTargetExerciseId) setReplaceTargetExerciseId(null);
     setShowAddExerciseInSession(true);
+  };
+
+  const openReplaceExercise = (exerciseId) => {
+    if (setReplaceTargetExerciseId) setReplaceTargetExerciseId(exerciseId);
+    setShowAddExerciseInSession(true);
+  };
+
+  // Parse HH:MM:SS or MM:SS to seconds
+  const parseHMStoSeconds = (str) => {
+    const parts = str.trim().split(':').map((p) => parseInt(p, 10) || 0);
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    return parts[0] || 0;
+  };
+
+  const handleStartTimeEdit = () => {
+    setWorkoutTimeInput(formatWorkoutTime(workoutSeconds));
+    setEditingWorkoutTime(true);
+  };
+
+  const handleSaveTime = () => {
+    const newSeconds = parseHMStoSeconds(workoutTimeInput);
+    setWorkoutSeconds(newSeconds);
+    setEditingWorkoutTime(false);
   };
 
   const handleCancelWorkout = () => {
@@ -126,6 +158,12 @@ export default function ActiveWorkoutScreen({
       {/* HEADER */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
+          <TouchableOpacity
+            onPress={() => setCurrentScreen('home')}
+            style={{ marginRight: 10, paddingVertical: 4 }}
+          >
+            <Ionicons name="arrow-back" size={24} color={isDarkMode ? '#ffffff' : '#1e293b'} />
+          </TouchableOpacity>
           <Image source={logoCompact} style={styles.logoSmall} />
           <View>
             <Text style={styles.headerTitle}>Sessione attiva</Text>
@@ -136,7 +174,7 @@ export default function ActiveWorkoutScreen({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <HelpButton screen="active" />
           <TouchableOpacity style={styles.statsButton} onPress={() => setShowStats(true)}>
-            <Text style={styles.statsButtonText}>Statistiche</Text>
+            <Text style={styles.statsButtonText}>Stats 📊</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.chipOutline}
@@ -146,10 +184,43 @@ export default function ActiveWorkoutScreen({
         </View>
       </View>
 
-      {/* WORKOUT TIMER */}
+      {/* WORKOUT TIMER — now editable */}
       <View style={styles.workoutTimerContainer}>
         <Text style={styles.workoutTimerLabel}>Tempo allenamento</Text>
-        <Text style={styles.workoutTimerValue}>{formatWorkoutTime(workoutSeconds)}</Text>
+        {editingWorkoutTime ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4 }}>
+            <TextInput
+              style={{
+                borderBottomWidth: 2,
+                borderBottomColor: '#86B749',
+                fontSize: 22,
+                fontWeight: '700',
+                color: '#1e293b',
+                minWidth: 110,
+                textAlign: 'center',
+                paddingVertical: 2,
+              }}
+              value={workoutTimeInput}
+              onChangeText={setWorkoutTimeInput}
+              keyboardType="numbers-and-punctuation"
+              autoFocus
+              placeholder="HH:MM:SS"
+            />
+            <TouchableOpacity
+              onPress={handleSaveTime}
+              style={{ backgroundColor: '#86B749', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8 }}>
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>OK</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setEditingWorkoutTime(false)}>
+              <Text style={{ color: '#ef4444', fontWeight: '700', fontSize: 18 }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity onPress={handleStartTimeEdit} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <Text style={styles.workoutTimerValue}>{formatWorkoutTime(workoutSeconds)}</Text>
+            <Text style={{ fontSize: 14, color: '#86B749', marginTop: 2 }}>✏️</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* EXERCISE LIST — flex:1 so it fills remaining space and scrolls */}
@@ -199,7 +270,7 @@ export default function ActiveWorkoutScreen({
           const exType = ex.type || 'weight_reps';
           const timed = isTimed(exType);
           const repsOnly = isRepsOnly(exType);
-          const hasRestTime = !timed;
+          const hasRestTime = true;
 
           return (
             <Swipeable
@@ -237,6 +308,21 @@ export default function ActiveWorkoutScreen({
                       <Text style={styles.muscleGroup}>
                         {ex.muscleGroup}{ex.subcategory ? ` • ${ex.subcategory}` : ''} ℹ️
                       </Text>
+                    </TouchableOpacity>
+
+                    {/* Replace exercise button */}
+                    <TouchableOpacity
+                      onPress={() => openReplaceExercise(ex.id)}
+                      style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                        borderRadius: 6,
+                        borderWidth: 1.5,
+                        borderColor: '#86B749',
+                        backgroundColor: '#f0fdf4',
+                        marginLeft: 4,
+                      }}>
+                      <Text style={{ fontSize: 11, color: '#15803d', fontWeight: '700' }}>🔄</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -351,6 +437,40 @@ export default function ActiveWorkoutScreen({
                     </>
                   )}
 
+                  {/* Note per esercizio */}
+                  {settings.showExerciseNotes !== false && (
+                    <View style={{ marginTop: 10, marginBottom: 4, paddingHorizontal: 4 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: isDarkMode ? '#cbd5e1' : '#475569', marginBottom: 4 }}>Note esercizio:</Text>
+                      <TextInput
+                        style={{
+                          backgroundColor: isDarkMode ? '#1e293b' : '#f8fafc',
+                          borderWidth: 1,
+                          borderColor: isDarkMode ? '#334155' : '#e2e8f0',
+                          borderRadius: 8,
+                          padding: 8,
+                          fontSize: 13,
+                          color: isDarkMode ? '#f8fafc' : '#0f172a',
+                          minHeight: 40,
+                        }}
+                        placeholder="Aggiungi una nota (es. impugnatura, altezza sedile...)"
+                        placeholderTextColor={isDarkMode ? '#64748b' : '#94a3b8'}
+                        value={ex.note || ''}
+                        onChangeText={(val) => {
+                          setActiveWorkout((prev) => {
+                            if (!prev) return prev;
+                            return {
+                              ...prev,
+                              exercises: prev.exercises.map((e) =>
+                                e.id === ex.id ? { ...e, note: val } : e
+                              ),
+                            };
+                          });
+                        }}
+                        multiline
+                      />
+                    </View>
+                  )}
+
                   <TouchableOpacity
                     style={styles.addSetRowButton}
                     onPress={() => addSetToExercise(ex.id)}>
@@ -364,7 +484,7 @@ export default function ActiveWorkoutScreen({
       />
       </View>
 
-      {/* FOOTER RECOVERY TIMER (renders in place of bottom footer buttons when active) */}
+      {/* FOOTER RECOVERY TIMER */}
       {timerActive || timer > 0 ? (
         <View style={styles.timerBar}>
           <Text style={styles.timerLabel}>Recupero</Text>

@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, useColorScheme } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getStyles, getThemeColors } from '../styles/styles';
+import { useEffectiveDark } from '../context/SettingsContext';
 
 export default function BottomNav({ currentScreen, setCurrentScreen }) {
-  const isDarkMode = useColorScheme() === 'dark';
+  const isDarkMode = useEffectiveDark();
   const styles = getStyles(isDarkMode);
   const C = getThemeColors(isDarkMode);
 

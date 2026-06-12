@@ -1,9 +1,11 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useState } from 'react';
-import { Alert, useColorScheme, StatusBar } from 'react-native';
+import { Alert, StatusBar, TouchableOpacity, View, Text } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { getStyles } from './styles/styles';
+import { SettingsProvider, useEffectiveDark, useSettings } from './context/SettingsContext';
+import { Ionicons } from '@expo/vector-icons';
 
 // Constants & Helper functions
 import { PRESET_EXERCISES } from './constants';
@@ -32,8 +34,8 @@ import AddExerciseInTemplateModal from './modals/AddExerciseInTemplateModal';
 import ExerciseDescriptionModal from './components/ExerciseDescriptionModal';
 
 function MainApp() {
-  const colorScheme = useColorScheme();
-  const isDarkMode = colorScheme === 'dark';
+  const isDarkMode = useEffectiveDark();
+  const { settings } = useSettings();
   const styles = getStyles(isDarkMode);
 
   const [currentScreen, setCurrentScreen] = useState('login');
@@ -63,6 +65,7 @@ function MainApp() {
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [showHistoryDetailModal, setShowHistoryDetailModal] = useState(false);
   const [showEditHistoryModal, setShowEditHistoryModal] = useState(false);
+  const [replaceTargetExerciseId, setReplaceTargetExerciseId] = useState(null);
 
   // Exercise Description Modal states
   const [selectedDescriptionExercise, setSelectedDescriptionExercise] = useState(null);
@@ -82,6 +85,7 @@ function MainApp() {
   const [customExerciseName, setCustomExerciseName] = useState('');
   const [customMuscleGroup, setCustomMuscleGroup] = useState('');
   const [customExerciseType, setCustomExerciseType] = useState('weight_reps');
+  const [customExerciseDescription, setCustomExerciseDescription] = useState('');
 
   const [profileName, setProfileName] = useState('');
   const [profileAge, setProfileAge] = useState('');
@@ -120,18 +124,58 @@ function MainApp() {
       interval = setInterval(() => setTimer((prev) => prev - 1), 1000);
     } else if (timer === 0 && timerActive) {
       setTimerActive(false);
+
+      // Play native feedback notifications on timer end based on settings preferences
+      const triggerFeedback = async () => {
+        try {
+          if (settings.restTimerHaptic) {
+            const Haptics = require('expo-haptics');
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+        } catch (err) {
+          console.log('Haptics feedback error:', err);
+        }
+
+        try {
+          if (settings.restTimerSound) {
+            const { Audio } = require('expo-av');
+            // Configure Audio to play through the ringtone/speaker channel at maximum system output
+            await Audio.setAudioModeAsync({
+              playsInSilentModeIOS: true,
+              staysActiveInBackground: true,
+              shouldRouteThroughEarpieceAndroid: false,
+            });
+            const { sound } = await Audio.Sound.createAsync(
+              require('./assets/ping.ogg'),
+              { volume: 1.0 } // Set volume level to 1.0 (maximum output)
+            );
+            await sound.playAsync();
+            // Automatically stop the sound after 3 seconds
+            setTimeout(async () => {
+              try {
+                await sound.stopAsync();
+                await sound.unloadAsync();
+              } catch (e) {}
+            }, 3000);
+          }
+        } catch (err) {
+          console.log('Audio feedback error:', err);
+        }
+      };
+
+      triggerFeedback();
       Alert.alert('Timer terminato', 'Tempo concluso!');
     }
     return () => clearInterval(interval);
-  }, [timerActive, timer, isPaused]);
+  }, [timerActive, timer, isPaused, settings]);
 
   useEffect(() => {
     let interval;
-    if (currentScreen === 'activeWorkout' && !isPaused) {
+    if (activeWorkout && !isPaused) {
       interval = setInterval(() => setWorkoutSeconds((prev) => prev + 1), 1000);
     }
     return () => clearInterval(interval);
-  }, [currentScreen, isPaused]);
+  }, [activeWorkout, isPaused]);
 
   useEffect(() => {
     if (user) saveData();
@@ -295,21 +339,15 @@ function MainApp() {
   };
 
   const createWorkout = () => {
-    if (!workoutName.trim()) {
-      Alert.alert('Errore', 'Inserisci un nome per la scheda');
-      return;
-    }
-
+    // Create a new blank workout and open directly in the template editor
     const newWorkout = {
       id: Date.now(),
-      name: workoutName.trim(),
+      name: '',
       exercises: [],
       createdAt: new Date().toISOString(),
+      isNew: true,
     };
-
-    setWorkouts((prev) => [...prev, newWorkout]);
-    setWorkoutName('');
-    setShowCreateWorkout(false);
+    openTemplateEditor(newWorkout);
   };
 
   const deleteWorkout = (id) => {
@@ -325,10 +363,20 @@ function MainApp() {
   };
 
   const createCustomExercise = () => {
-    if (!customExerciseName.trim() || !customMuscleGroup.trim()) {
+    const cleanedExName = customExerciseName.trim();
+    const isOnlySpecialChars = /^[-\s!@#$%^&*()_+={}\[\]|\\:;"'<>,.?\/~`]+$/.test(cleanedExName);
+
+    if (!cleanedExName || !customMuscleGroup.trim()) {
       Alert.alert(
         'Errore',
         'Compila nome esercizio e scegli il gruppo muscolare'
+      );
+      return;
+    }
+    if (isOnlySpecialChars) {
+      Alert.alert(
+        'Errore',
+        'Il nome dell\'esercizio non può contenere solo caratteri speciali o trattini'
       );
       return;
     }
@@ -338,6 +386,7 @@ function MainApp() {
       name: customExerciseName.trim(),
       muscleGroup: customMuscleGroup,
       type: customExerciseType || 'weight_reps',
+      description: customExerciseDescription.trim() || '',
       custom: true,
     };
 
@@ -345,6 +394,7 @@ function MainApp() {
     setCustomExerciseName('');
     setCustomMuscleGroup('');
     setCustomExerciseType('weight_reps');
+    setCustomExerciseDescription('');
     setShowCustomExercise(false);
   };
 
@@ -373,7 +423,7 @@ function MainApp() {
               completed: false,
             }));
 
-      return { ...ex, setDetails };
+      return { ...ex, note: ex.note || '', setDetails };
     });
 
     setActiveWorkout({
@@ -404,7 +454,7 @@ function MainApp() {
             }))
           : [{ weight: 0, reps: 0, duration: 0, completed: false }];
 
-      return { ...ex, setDetails: existingSetDetails };
+      return { ...ex, note: ex.note || '', setDetails: existingSetDetails };
     });
 
     setTemplateWorkout({
@@ -416,6 +466,19 @@ function MainApp() {
 
   const saveTemplateWorkout = () => {
     if (!templateWorkout) return;
+
+    const cleanedName = (templateWorkout.name || '').trim();
+    // Regex matches strings that are only hyphens, punctuation or special characters
+    const isOnlySpecialChars = /^[-\s!@#$%^&*()_+={}\[\]|\\:;"'<>,.?\/~`]+$/.test(cleanedName);
+
+    if (!cleanedName) {
+      Alert.alert('Errore', 'Inserisci un nome per la scheda prima di salvare');
+      return;
+    }
+    if (isOnlySpecialChars) {
+      Alert.alert('Errore', 'Il nome della scheda non può contenere solo caratteri speciali o trattini');
+      return;
+    }
 
     const normalizedExercises = templateWorkout.exercises.map((ex) => {
       const exType = ex.type || 'weight_reps';
@@ -434,13 +497,18 @@ function MainApp() {
       };
     });
 
-    setWorkouts((prev) =>
-      prev.map((w) =>
-        w.id === templateWorkout.id
-          ? { ...templateWorkout, exercises: normalizedExercises }
-          : w
-      )
-    );
+    const finalWorkout = { ...templateWorkout, exercises: normalizedExercises, isNew: false };
+
+    if (templateWorkout.isNew) {
+      // New workout: add to list
+      setWorkouts((prev) => [...prev, finalWorkout]);
+    } else {
+      setWorkouts((prev) =>
+        prev.map((w) =>
+          w.id === templateWorkout.id ? finalWorkout : w
+        )
+      );
+    }
 
     setTemplateWorkout(null);
     setCurrentScreen('home');
@@ -492,14 +560,7 @@ function MainApp() {
     const targetSet = targetExercise?.setDetails?.[setIndex];
     if (!targetExercise || !targetSet) return;
 
-    const exType = targetExercise.type || 'weight_reps';
-    // For timed exercises: convert minutes to seconds for rest timer
-    if (exType === 'timed' && targetSet.completed && targetSet.duration > 0) {
-      startRestTimer(Math.round(parseFloat(targetSet.duration) * 60));
-      return;
-    }
-    // For weight/reps exercises: start rest timer
-    if (exType !== 'timed' && targetSet.completed) {
+    if (targetSet.completed) {
       startRestTimer(targetExercise.restTime || 60);
     }
   };
@@ -507,27 +568,51 @@ function MainApp() {
   const updateSetDetail = (exerciseId, setIndex, field, value) => {
     if (!activeWorkout) return;
 
+    const THRESHOLD_FACTOR = 3; 
+
+    const targetExercise = activeWorkout.exercises.find(e => e.id === exerciseId);
+    const currentSet = targetExercise?.setDetails?.[setIndex];
+    if (targetExercise && currentSet) {
+      const parsedVal = field === 'reps' ? (parseInt(value, 10) || 0) : (parseFloat(value) || 0);
+      const prevVal = field === 'reps' ? (currentSet.reps || 0) : (currentSet.weight || 0);
+
+      if (prevVal > 0 && parsedVal >= prevVal * THRESHOLD_FACTOR) {
+        Alert.alert(
+          'Valore anomalo',
+          `Il valore inserito (${parsedVal}) è molto più alto rispetto a quello precedente (${prevVal}). Sei sicuro che sia corretto?`,
+          [
+            {
+              text: 'Modifica',
+              style: 'cancel',
+              onPress: () => {}
+            },
+            {
+              text: 'Conferma',
+              onPress: () => {
+                applySetUpdate(exerciseId, setIndex, field, parsedVal);
+              }
+            }
+          ]
+        );
+        return;
+      }
+    }
+
+    const parsedValue = field === 'reps' ? (parseInt(value || '0', 10) || 0) : (parseFloat(value || '0') || 0);
+    applySetUpdate(exerciseId, setIndex, field, parsedValue);
+  };
+
+  const applySetUpdate = (exerciseId, setIndex, field, parsedValue) => {
     setActiveWorkout((prev) => {
       if (!prev) return prev;
-
       return {
         ...prev,
         exercises: prev.exercises.map((ex) => {
           if (ex.id !== exerciseId) return ex;
-
           return {
             ...ex,
             setDetails: ex.setDetails.map((sd, idx) => {
               if (idx !== setIndex) return sd;
-
-              let parsedValue = value;
-              if (field === 'reps') {
-                parsedValue = parseInt(value || '0', 10) || 0;
-              }
-              if (field === 'duration' || field === 'weight') {
-                parsedValue = parseFloat(value || '0') || 0;
-              }
-
               return { ...sd, [field]: parsedValue };
             }),
           };
@@ -604,50 +689,37 @@ function MainApp() {
     });
   };
 
+  const buildExerciseEntry = (exerciseData, overrideId) => {
+    const exType = exerciseData.type || 'weight_reps';
+    const timed = exType === 'timed';
+    const baseRest = settings.defaultRestTime || 60;
+    const newEx = {
+      id: overrideId ?? Date.now() + Math.random(),
+      exerciseId: exerciseData.id,
+      name: exerciseData.name,
+      muscleGroup: exerciseData.muscleGroup,
+      subcategory: exerciseData.subcategory,
+      type: exType,
+      sets: 1,
+      reps: 0,
+      weight: 0,
+      duration: 0,
+      restTime: baseRest,
+      setDetails: [{ weight: 0, reps: 0, duration: 0, completed: false }],
+    };
+    return newEx;
+  };
+
   const addExerciseToActiveWorkout = () => {
     if (!activeWorkout) return;
     if (!sessionSelectedExercise) {
       Alert.alert('Errore', 'Seleziona un esercizio');
       return;
     }
-
-    const exType = sessionSelectedExercise.type || 'weight_reps';
-    const timed = exType === 'timed';
-    const repsOnly = exType === 'reps';
-
-    const baseSets = parseInt(sessionSets || '1', 10) || 1;
-    const baseDuration = timed ? (parseFloat(sessionDuration || '0') || 0) : 0;
-    const baseReps = timed ? 0 : (parseInt(sessionReps || '0', 10) || 0);
-    const baseWeight = (timed || repsOnly) ? 0 : (parseFloat(sessionWeight || '0') || 0);
-    const baseRest = timed ? 0 : (parseInt(sessionRestTime || '60', 10) || 60);
-
-    const newEx = {
-      id: Date.now(),
-      exerciseId: sessionSelectedExercise.id,
-      name: sessionSelectedExercise.name,
-      muscleGroup: sessionSelectedExercise.muscleGroup,
-      type: exType,
-      sets: baseSets,
-      reps: baseReps,
-      weight: baseWeight,
-      duration: baseDuration,
-      restTime: baseRest,
-      setDetails: [],
-    };
-
-    for (let i = 0; i < baseSets; i++) {
-      newEx.setDetails.push({
-        weight: newEx.weight,
-        reps: newEx.reps,
-        duration: newEx.duration,
-        completed: false,
-      });
-    }
-
+    const newEx = buildExerciseEntry(sessionSelectedExercise);
     setActiveWorkout((prev) =>
       prev ? { ...prev, exercises: [...prev.exercises, newEx] } : prev
     );
-
     setShowAddExerciseInSession(false);
     setSessionSelectedExercise(null);
     setSessionSets('');
@@ -655,6 +727,32 @@ function MainApp() {
     setSessionWeight('');
     setSessionRestTime('60');
     setSessionDuration('');
+  };
+
+  const addMultipleExercisesToActiveWorkout = (exerciseList) => {
+    if (!activeWorkout || !exerciseList || exerciseList.length === 0) return;
+    const newExercises = exerciseList.map((ex) => buildExerciseEntry(ex));
+    setActiveWorkout((prev) =>
+      prev ? { ...prev, exercises: [...prev.exercises, ...newExercises] } : prev
+    );
+    setShowAddExerciseInSession(false);
+  };
+
+  const replaceExerciseInActiveWorkout = (targetId, newExerciseData) => {
+    if (!activeWorkout || !targetId || !newExerciseData) return;
+    const replacement = buildExerciseEntry(newExerciseData, targetId);
+    setActiveWorkout((prev) =>
+      prev
+        ? {
+            ...prev,
+            exercises: prev.exercises.map((ex) =>
+              ex.id === targetId ? replacement : ex
+            ),
+          }
+        : prev
+    );
+    setReplaceTargetExerciseId(null);
+    setShowAddExerciseInSession(false);
   };
 
   const openRestTimeModal = (exerciseId, currentRestTime) => {
@@ -785,37 +883,58 @@ function MainApp() {
       Alert.alert('Errore', 'Seleziona un esercizio');
       return;
     }
-
     const exType = templateSelectedExercise.type || 'weight_reps';
     const timed = exType === 'timed';
     const repsOnly = exType === 'reps';
-
     const exercise = {
       id: Date.now(),
       exerciseId: templateSelectedExercise.id,
       name: templateSelectedExercise.name,
       muscleGroup: templateSelectedExercise.muscleGroup,
+      subcategory: templateSelectedExercise.subcategory,
       type: exType,
       sets: 1,
-      reps: timed ? 0 : 0,
-      weight: timed || repsOnly ? 0 : 0,
-      duration: timed ? 0 : 0,
-      restTime: timed ? 0 : 60,
-      setDetails: [
-        { weight: 0, reps: 0, duration: 0, completed: false },
-      ],
+      reps: 0,
+      weight: 0,
+      duration: 0,
+      restTime: settings.defaultRestTime || 60,
+      setDetails: [{ weight: 0, reps: 0, duration: 0, completed: false }],
     };
-
     setTemplateWorkout((prev) =>
       prev ? { ...prev, exercises: [...prev.exercises, exercise] } : prev
     );
-
     setTemplateSelectedExercise(null);
     setTemplateSets('');
     setTemplateReps('');
     setTemplateWeight('');
     setTemplateRestTime('60');
     setTemplateDuration('');
+    setShowAddExerciseInTemplate(false);
+  };
+
+  const addMultipleExercisesToTemplate = (exerciseList) => {
+    if (!templateWorkout || !exerciseList || exerciseList.length === 0) return;
+    const newExercises = exerciseList.map((ex) => {
+      const exType = ex.type || 'weight_reps';
+      const timed = exType === 'timed';
+      return {
+        id: Date.now() + Math.random(),
+        exerciseId: ex.id,
+        name: ex.name,
+        muscleGroup: ex.muscleGroup,
+        subcategory: ex.subcategory,
+        type: exType,
+        sets: 1,
+        reps: 0,
+        weight: 0,
+        duration: 0,
+        restTime: settings.defaultRestTime || 60,
+        setDetails: [{ weight: 0, reps: 0, duration: 0, completed: false }],
+      };
+    });
+    setTemplateWorkout((prev) =>
+      prev ? { ...prev, exercises: [...prev.exercises, ...newExercises] } : prev
+    );
     setShowAddExerciseInTemplate(false);
   };
 
@@ -919,6 +1038,17 @@ function MainApp() {
     });
   };
 
+  const updateHistoryGeneralNote = (recordId, noteText) => {
+    setHistory((prev) =>
+      prev.map((item) =>
+        item.id === recordId ? { ...item, generalNote: noteText } : item
+      )
+    );
+    if (selectedHistoryRecord && selectedHistoryRecord.id === recordId) {
+      setSelectedHistoryRecord((prev) => prev ? { ...prev, generalNote: noteText } : prev);
+    }
+  };
+
   const saveEditedHistory = () => {
     if (!editingHistoryRecord) return;
     setHistory((prev) =>
@@ -983,9 +1113,10 @@ function MainApp() {
           setSelectedWorkout={setSelectedWorkout}
           setShowViewWorkout={setShowViewWorkout}
           openTemplateEditor={openTemplateEditor}
-          setShowCreateWorkout={setShowCreateWorkout}
+          createWorkout={createWorkout}
           currentScreen={currentScreen}
           setCurrentScreen={setCurrentScreen}
+          activeWorkout={activeWorkout}
         />
       )}
       {currentScreen === 'activeWorkout' && (
@@ -1019,6 +1150,7 @@ function MainApp() {
           finishWorkout={finishWorkout}
           setCurrentScreen={setCurrentScreen}
           openExerciseDescription={openExerciseDescription}
+          setReplaceTargetExerciseId={setReplaceTargetExerciseId}
         />
       )}
       {currentScreen === 'editTemplate' && (
@@ -1102,6 +1234,8 @@ function MainApp() {
         setCustomMuscleGroup={setCustomMuscleGroup}
         customExerciseType={customExerciseType}
         setCustomExerciseType={setCustomExerciseType}
+        customExerciseDescription={customExerciseDescription}
+        setCustomExerciseDescription={setCustomExerciseDescription}
         exercises={exercises}
         createCustomExercise={createCustomExercise}
       />
@@ -1131,6 +1265,7 @@ function MainApp() {
         setShowHistoryDetailModal={setShowHistoryDetailModal}
         selectedHistoryRecord={selectedHistoryRecord}
         formatWorkoutTime={formatWorkoutTime}
+        updateHistoryGeneralNote={updateHistoryGeneralNote}
       />
       <EditHistoryModal
         showEditHistoryModal={showEditHistoryModal}
@@ -1139,6 +1274,7 @@ function MainApp() {
         setEditingHistoryRecord={setEditingHistoryRecord}
         updateHistorySetDetail={updateHistorySetDetail}
         saveEditedHistory={saveEditedHistory}
+        formatWorkoutTime={formatWorkoutTime}
       />
       <AddExerciseInSessionModal
         showAddExerciseInSession={showAddExerciseInSession}
@@ -1157,6 +1293,10 @@ function MainApp() {
         sessionDuration={sessionDuration}
         setSessionDuration={setSessionDuration}
         addExerciseToActiveWorkout={addExerciseToActiveWorkout}
+        addMultipleExercisesToActiveWorkout={addMultipleExercisesToActiveWorkout}
+        replaceExerciseInActiveWorkout={replaceExerciseInActiveWorkout}
+        replaceTargetExerciseId={replaceTargetExerciseId}
+        setReplaceTargetExerciseId={setReplaceTargetExerciseId}
         openExerciseDescription={openExerciseDescription}
         exercises={exercises}
       />
@@ -1172,6 +1312,7 @@ function MainApp() {
         setTemplateRestTime={setTemplateRestTime}
         setTemplateDuration={setTemplateDuration}
         addExerciseToTemplate={addExerciseToTemplate}
+        addMultipleExercisesToTemplate={addMultipleExercisesToTemplate}
         openExerciseDescription={openExerciseDescription}
         exercises={exercises}
       />
@@ -1184,6 +1325,57 @@ function MainApp() {
           setSelectedDescriptionExercise(null);
         }}
       />
+
+      {/* Floating Active Workout Bar */}
+      {activeWorkout && currentScreen !== 'activeWorkout' && currentScreen !== 'login' && currentScreen !== 'editTemplate' && (
+        <TouchableOpacity
+          activeOpacity={0.9}
+          style={{
+            position: 'absolute',
+            bottom: 110,
+            left: 12,
+            right: 12,
+            backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
+            borderRadius: 12,
+            borderWidth: 1.5,
+            borderColor: '#86B749',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.15,
+            shadowRadius: 6,
+            elevation: 8,
+          }}
+          onPress={() => setCurrentScreen('activeWorkout')}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+            <View style={{
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: '#86B749',
+            }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#86B749', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Allenamento Attivo
+              </Text>
+              <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '600', color: isDarkMode ? '#f8fafc' : '#0f172a' }}>
+                {activeWorkout.name}
+              </Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#86B749', fontFamily: 'monospace' }}>
+              {formatWorkoutTime(workoutSeconds)}
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color="#86B749" />
+          </View>
+        </TouchableOpacity>
+      )}
     </>
   );
 }
@@ -1191,7 +1383,9 @@ function MainApp() {
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <MainApp />
+      <SettingsProvider>
+        <MainApp />
+      </SettingsProvider>
     </GestureHandlerRootView>
   );
 }

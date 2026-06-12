@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, useColorScheme } from 'react-native';
+import { Modal, View, Text, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { useEffectiveDark } from '../context/SettingsContext';
 import { getStyles } from '../styles/styles';
 import ExerciseDescriptionModal from '../components/ExerciseDescriptionModal';
 import FilterDropdown from '../components/FilterDropdown';
@@ -16,30 +17,29 @@ export default function AddExerciseInTemplateModal({
   setTemplateRestTime,
   setTemplateDuration,
   addExerciseToTemplate,
+  addMultipleExercisesToTemplate,
   exercises = [],
 }) {
-  const isDarkMode = useColorScheme() === 'dark';
+  const isDarkMode = useEffectiveDark();
   const styles = getStyles(isDarkMode);
   const [search, setSearch] = useState('');
   const [selectedMuscle, setSelectedMuscle] = useState(null);
   const [selectedStyle, setSelectedStyle] = useState(null);
 
-  // Local state for description modal to avoid nested modal overlapping issues on mobile
+  // Multi-select state: array of exercise objects in selection order
+  const [selectedExercises, setSelectedExercises] = useState([]);
+
+  // Local state for description modal
   const [localSelectedExercise, setLocalSelectedExercise] = useState(null);
   const [localShowDescription, setLocalShowDescription] = useState(false);
 
   const filteredExercises = useMemo(() => {
     return exercises.filter((ex) => {
-      // 1. Search Query
       if (search.trim() !== '') {
         const query = search.toLowerCase();
         if (!ex.name.toLowerCase().includes(query)) return false;
       }
-      // 2. Muscle Group (Gruppo muscolare)
-      if (selectedMuscle && ex.muscleGroup !== selectedMuscle) {
-        return false;
-      }
-      // 3. Category (Categoria: Macchinari, Corpo libero, Pesi)
+      if (selectedMuscle && ex.muscleGroup !== selectedMuscle) return false;
       if (selectedStyle) {
         if (selectedStyle === 'Macchinari' && ex.subcategory !== 'Macchinari') return false;
         if (selectedStyle === 'Corpo libero' && ex.subcategory !== 'Corpo libero') return false;
@@ -58,28 +58,57 @@ export default function AddExerciseInTemplateModal({
     return res;
   }, [filteredExercises]);
 
-  const ex = templateSelectedExercise;
-  const exType = ex?.type || 'weight_reps';
-  const isTimed = exType === 'timed';
-  const isRepsOnly = exType === 'reps';
-
-  const typeDescription = isTimed
-    ? 'Verrà aggiunto con una serie a 0 min modificabile.'
-    : isRepsOnly
-    ? 'Verrà aggiunto con una serie a 0 reps modificabile.'
-    : 'Verrà aggiunto con una serie a 0 kg / 0 reps modificabile.';
-
   const handleOpenLocalDescription = (item) => {
     const fullEx = exercises.find(e => e.id === item.id || e.name === item.name);
     setLocalSelectedExercise(fullEx || item);
     setLocalShowDescription(true);
   };
 
+  const toggleExerciseSelection = (e) => {
+    setSelectedExercises((prev) => {
+      const exists = prev.find((x) => x.id === e.id);
+      if (exists) {
+        return prev.filter((x) => x.id !== e.id);
+      } else {
+        return [...prev, e];
+      }
+    });
+  };
+
+  const getSelectionIndex = (eId) => {
+    const idx = selectedExercises.findIndex((x) => x.id === eId);
+    return idx === -1 ? null : idx + 1;
+  };
+
+  const handleClose = () => {
+    setShowAddExerciseInTemplate(false);
+    setTemplateSelectedExercise(null);
+    setSelectedExercises([]);
+    setSearch('');
+    setSelectedMuscle(null);
+    setSelectedStyle(null);
+  };
+
+  const handleConfirm = () => {
+    if (selectedExercises.length === 0) return;
+    addMultipleExercisesToTemplate(selectedExercises);
+    setSelectedExercises([]);
+    setSearch('');
+    setSelectedMuscle(null);
+    setSelectedStyle(null);
+  };
+
+  const isGreen = '#86B749';
+
   return (
     <Modal visible={showAddExerciseInTemplate} animationType="slide" transparent>
       <View style={styles.modalOverlay}>
         <View style={styles.modalContentLarge}>
-          <Text style={styles.modalTitle}>Aggiungi esercizio</Text>
+          <Text style={styles.modalTitle}>Aggiungi esercizi</Text>
+
+          <Text style={{ fontSize: 12, color: '#64748b', textAlign: 'center', marginBottom: 8 }}>
+            Tocca gli esercizi per selezionarli. Verranno aggiunti nell'ordine di selezione.
+          </Text>
 
           {/* Search bar */}
           <TextInput
@@ -119,29 +148,43 @@ export default function AddExerciseInTemplateModal({
                   <Text style={styles.muscleGroupTitle}>{muscle}</Text>
 
                   {grouped[muscle].map((e) => {
-                    const typeLabel =
-                      e.type === 'timed' ? '⏱' : e.type === 'reps' ? '🔁' : '🏋️‍♂️';
+                    const typeLabel = e.type === 'timed' ? '⏱' : e.type === 'reps' ? '🔁' : '🏋️‍♂️';
+                    const selIdx = getSelectionIndex(e.id);
+                    const isSelected = selIdx !== null;
+
                     return (
                       <View
                         key={e.id}
                         style={[
                           styles.selectableExercise,
-                          templateSelectedExercise?.id === e.id && styles.selectedExercise,
+                          isSelected && styles.selectedExercise,
                           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 6, paddingVertical: 6 }
                         ]}
                       >
                         <TouchableOpacity
-                          style={{ flex: 1, paddingVertical: 4 }}
-                          onPress={() => {
-                            setTemplateSelectedExercise(e);
-                            setTemplateSets('');
-                            setTemplateReps('');
-                            setTemplateWeight('');
-                            setTemplateRestTime('60');
-                            setTemplateDuration('');
-                          }}
+                          style={{ flex: 1, paddingVertical: 4, flexDirection: 'row', alignItems: 'center' }}
+                          onPress={() => toggleExerciseSelection(e)}
                         >
-                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          {/* Selection badge */}
+                          <View style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: 12,
+                            borderWidth: 2,
+                            borderColor: isSelected ? isGreen : '#cbd5e1',
+                            backgroundColor: isSelected ? isGreen : 'transparent',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            marginRight: 8,
+                            flexShrink: 0,
+                          }}>
+                            {isSelected && (
+                              <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>
+                                {selIdx}
+                              </Text>
+                            )}
+                          </View>
+                          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={[styles.exerciseListName, { flex: 1 }]}>{e.name}</Text>
                             <Text style={{ fontSize: 12, marginRight: 8 }}>{typeLabel}</Text>
                           </View>
@@ -170,32 +213,49 @@ export default function AddExerciseInTemplateModal({
             )}
           </ScrollView>
 
-          {ex ? (
-            <View style={styles.exerciseForm}>
-              <Text style={styles.selectedExerciseText}>{ex.name}</Text>
-              <Text style={styles.viewExerciseDetails}>{typeDescription}</Text>
-
-              <TouchableOpacity style={styles.primaryButton} onPress={addExerciseToTemplate}>
-                <Text style={styles.primaryButtonText}>Aggiungi</Text>
-              </TouchableOpacity>
+          {selectedExercises.length > 0 && (
+            <View style={{
+              backgroundColor: '#f0fdf4',
+              borderRadius: 10,
+              padding: 10,
+              marginVertical: 8,
+              borderWidth: 1,
+              borderColor: '#86B749',
+            }}>
+              <Text style={{ color: '#15803d', fontWeight: '700', fontSize: 13, marginBottom: 4 }}>
+                {selectedExercises.length} esercizi selezionati:
+              </Text>
+              {selectedExercises.map((ex, i) => (
+                <Text key={ex.id} style={{ color: '#166534', fontSize: 12 }}>
+                  {i + 1}. {ex.name}
+                </Text>
+              ))}
             </View>
-          ) : null}
+          )}
+
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              { marginBottom: 0, opacity: selectedExercises.length === 0 ? 0.4 : 1 }
+            ]}
+            onPress={handleConfirm}
+            disabled={selectedExercises.length === 0}
+          >
+            <Text style={styles.primaryButtonText}>
+              {selectedExercises.length > 0
+                ? `Aggiungi ${selectedExercises.length} esercizi`
+                : 'Seleziona esercizi'}
+            </Text>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.secondaryButton}
-            onPress={() => {
-              setShowAddExerciseInTemplate(false);
-              setTemplateSelectedExercise(null);
-              setSearch('');
-              setSelectedMuscle(null);
-              setSelectedStyle(null);
-            }}>
+            onPress={handleClose}>
             <Text style={styles.secondaryButtonText}>Chiudi</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Rendered inside this modal so it displays on top of it on both iOS and Android */}
       <ExerciseDescriptionModal
         visible={localShowDescription}
         exercise={localSelectedExercise}

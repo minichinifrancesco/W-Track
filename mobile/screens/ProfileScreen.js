@@ -1,9 +1,11 @@
-import React from 'react';
-import { SafeAreaView, View, Image, Text, ScrollView, TouchableOpacity, useColorScheme } from 'react-native';
+import React, { useState } from 'react';
+import { SafeAreaView, View, Image, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { useEffectiveDark } from '../context/SettingsContext';
 import { logoCompact } from '../constants';
 import { getStyles } from '../styles/styles';
 import BottomNav from '../components/BottomNav';
 import HelpButton from '../components/HelpModal';
+import SettingsModal from '../modals/SettingsModal';
 
 export default function ProfileScreen({
   user,
@@ -19,8 +21,10 @@ export default function ProfileScreen({
   currentScreen,
   setCurrentScreen,
 }) {
-  const isDarkMode = useColorScheme() === 'dark';
+  const isDarkMode = useEffectiveDark();
   const styles = getStyles(isDarkMode);
+  const [showSettings, setShowSettings] = useState(false);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -31,7 +35,27 @@ export default function ProfileScreen({
             <Text style={styles.headerSubtitle}>{user?.email || 'Utente'}</Text>
           </View>
         </View>
-        <HelpButton screen="profile" />
+
+        {/* ⚙️ Settings button + ? Help button */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity
+            onPress={() => setShowSettings(true)}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: '#f0fdf4',
+              borderWidth: 1.5,
+              borderColor: '#86B749',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+            activeOpacity={0.75}
+          >
+            <Text style={{ fontSize: 17 }}>⚙️</Text>
+          </TouchableOpacity>
+          <HelpButton screen="profile" />
+        </View>
       </View>
 
       <ScrollView style={styles.content}>
@@ -109,6 +133,8 @@ export default function ProfileScreen({
       </ScrollView>
 
       <BottomNav currentScreen={currentScreen} setCurrentScreen={setCurrentScreen} />
+
+      <SettingsModal visible={showSettings} onClose={() => setShowSettings(false)} />
     </SafeAreaView>
   );
 }

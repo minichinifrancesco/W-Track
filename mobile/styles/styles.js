@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform, StatusBar } from 'react-native';
 import { COLORS as baseCOLORS } from '../constants';
 
 export const getThemeColors = (isDark) => {
@@ -90,6 +90,7 @@ export const getStyles = (isDark) => {
       justifyContent: 'space-between',
       alignItems: 'center',
       padding: 16,
+      paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 10 : 35) : 16,
       backgroundColor: C.card,
       borderBottomWidth: 1,
       borderBottomColor: C.border,
