@@ -1,5 +1,15 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Modal, View, Text, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import {
+  InputAccessoryView,
+  Keyboard,
+  Modal,
+  Platform,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+} from 'react-native';
 import { useEffectiveDark } from '../context/SettingsContext';
 import { getStyles } from '../styles/styles';
 import ExerciseDescriptionModal from '../components/ExerciseDescriptionModal';
@@ -8,6 +18,7 @@ import FilterDropdown from '../components/FilterDropdown';
 const MUSCLE_OPTIONS = ['Cardio', 'Gambe e glutei', 'Petto', 'Schiena', 'Spalle', 'Bicipiti', 'Tricipiti', 'Addome e core', 'Polpacci', 'Glutei specifici', 'Full body'];
 const CATEGORY_OPTIONS = ['Macchinari', 'Corpo libero', 'Pesi'];
 const IS_GREEN = '#86B749';
+const keyboardAccessoryId = 'add-session-exercise-keyboard-accessory';
 
 // Extracting row item as a React.memo component prevents re-rendering all items when one is toggled
 const ExerciseListItem = React.memo(function ExerciseListItem({
@@ -224,6 +235,9 @@ export default function AddExerciseInSessionModal({
             value={search}
             onChangeText={setSearch}
             placeholderTextColor="#94a3b8"
+            inputAccessoryViewID={keyboardAccessoryId}
+            returnKeyType="done"
+            onSubmitEditing={Keyboard.dismiss}
           />
 
           {/* Filter Lists */}
@@ -246,7 +260,10 @@ export default function AddExerciseInSessionModal({
             />
           </View>
 
-          <ScrollView style={styles.exerciseList}>
+          <ScrollView
+            style={styles.exerciseList}
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            keyboardShouldPersistTaps="handled">
             {Object.keys(grouped).length === 0 ? (
               <Text style={{ textAlign: 'center', color: '#6b7280', marginTop: 20 }}>Nessun esercizio trovato</Text>
             ) : (
@@ -320,6 +337,26 @@ export default function AddExerciseInSessionModal({
             onPress={handleClose}>
             <Text style={styles.secondaryButtonText}>Chiudi</Text>
           </TouchableOpacity>
+
+          {Platform.OS === 'ios' && (
+            <InputAccessoryView nativeID={keyboardAccessoryId}>
+              <View
+                style={{
+                  alignItems: 'flex-end',
+                  backgroundColor: isDarkMode ? '#1e293b' : '#f8fafc',
+                  borderTopColor: isDarkMode ? '#334155' : '#cbd5e1',
+                  borderTopWidth: 1,
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                }}>
+                <TouchableOpacity onPress={Keyboard.dismiss}>
+                  <Text style={{ color: '#86B749', fontSize: 16, fontWeight: '800' }}>
+                    Fine
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </InputAccessoryView>
+          )}
         </View>
       </View>
 

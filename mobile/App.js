@@ -38,6 +38,9 @@ import {
   getHistoricalBestForExercise,
 } from './utils/progress';
 
+const parseWorkoutNumber = (value) =>
+  parseFloat(String(value || 0).replace(',', '.')) || 0;
+
 // Extracted as React.memo so only this component re-renders every second
 // (when workoutSeconds changes), not the entire MainApp tree.
 const FloatingWorkoutBar = React.memo(function FloatingWorkoutBar({
@@ -470,11 +473,15 @@ function MainApp() {
     ]);
   }, []);
 
-  const createCustomExercise = useCallback(() => {
-    const cleanedExName = customExerciseName.trim();
+  const createCustomExercise = useCallback((override = null) => {
+    const nextName = override?.name ?? customExerciseName;
+    const nextMuscleGroup = override?.muscleGroup ?? customMuscleGroup;
+    const nextType = override?.type ?? customExerciseType;
+    const nextDescription = override?.description ?? customExerciseDescription;
+    const cleanedExName = nextName.trim();
     const isOnlySpecialChars = /^[-\s!@#$%^&*()_+={}\[\]|\\:;"'<>,.?\/~`]+$/.test(cleanedExName);
 
-    if (!cleanedExName || !customMuscleGroup.trim()) {
+    if (!cleanedExName || !nextMuscleGroup.trim()) {
       Alert.alert(
         'Errore',
         'Compila nome esercizio e scegli il gruppo muscolare'
@@ -491,10 +498,10 @@ function MainApp() {
 
     const newExercise = {
       id: Date.now(),
-      name: customExerciseName.trim(),
-      muscleGroup: customMuscleGroup,
-      type: customExerciseType || 'weight_reps',
-      description: customExerciseDescription.trim() || '',
+      name: cleanedExName,
+      muscleGroup: nextMuscleGroup,
+      type: nextType || 'weight_reps',
+      description: nextDescription.trim() || '',
       custom: true,
     };
 
@@ -588,11 +595,19 @@ function MainApp() {
       return;
     }
 
+    const parseNumberInput = (value) =>
+      parseFloat(String(value || 0).replace(',', '.')) || 0;
+
     const normalizedExercises = templateWorkout.exercises.map((ex) => {
       const exType = ex.type || 'weight_reps';
       const timed = exType === 'timed';
       const repsOnly = exType === 'reps';
-      const details = ex.setDetails || [];
+      const details = (ex.setDetails || []).map((sd) => ({
+        weight: timed || repsOnly ? 0 : parseNumberInput(sd.weight),
+        reps: timed ? 0 : parseNumberInput(sd.reps),
+        duration: timed ? parseNumberInput(sd.duration) : 0,
+        completed: false,
+      }));
       const first = details[0] || {};
 
       return {
@@ -601,6 +616,7 @@ function MainApp() {
         reps: timed ? 0 : first.reps || 0,
         weight: timed || repsOnly ? 0 : first.weight || 0,
         duration: timed ? first.duration || 0 : 0,
+        restTime: parseNumberInput(ex.restTime),
         setDetails: details,
       };
     });
@@ -742,22 +758,22 @@ function MainApp() {
 
       if (prevSet) {
         if (timed) {
-          const currentDuration = Number(targetSet.duration) || 0;
-          const prevDuration = Number(prevSet.duration) || 0;
+          const currentDuration = parseWorkoutNumber(targetSet.duration);
+          const prevDuration = parseWorkoutNumber(prevSet.duration);
           if (prevDuration > 0 && currentDuration >= prevDuration * 3) {
             isAnomalous = true;
-            alertMsg = `La durata inserita (${currentDuration}s) è molto più alta rispetto a quella precedente (${prevDuration}s). Sei sicuro che sia corretta?`;
+            alertMsg = `La durata inserita (${currentDuration} min) è molto più alta rispetto a quella precedente (${prevDuration} min). Sei sicuro che sia corretta?`;
           }
         } else if (repsOnly) {
-          const currentReps = Number(targetSet.reps) || 0;
-          const prevReps = Number(prevSet.reps) || 0;
+          const currentReps = parseWorkoutNumber(targetSet.reps);
+          const prevReps = parseWorkoutNumber(prevSet.reps);
           if (prevReps > 0 && currentReps >= prevReps * 3) {
             isAnomalous = true;
             alertMsg = `Le ripetizioni inserite (${currentReps}) sono molto più alte rispetto a quelle precedenti (${prevReps}). Sei sicuro che siano corrette?`;
           }
         } else {
-          const currentWeight = Number(targetSet.weight) || 0;
-          const prevWeight = Number(prevSet.weight) || 0;
+          const currentWeight = parseWorkoutNumber(targetSet.weight);
+          const prevWeight = parseWorkoutNumber(prevSet.weight);
           const currentReps = Number(targetSet.reps) || 0;
           const prevReps = Number(prevSet.reps) || 0;
 
@@ -801,10 +817,8 @@ function MainApp() {
   }, [activeWorkout, history, startRestTimer]);
 
   const updateSetDetail = useCallback((exerciseId, setIndex, field, value) => {
-    if (!activeWorkout) return;
-    const parsedValue = field === 'reps' ? (parseInt(value || '0', 10) || 0) : (parseFloat(value || '0') || 0);
-    applySetUpdate(exerciseId, setIndex, field, parsedValue);
-  }, [activeWorkout, applySetUpdate]);
+    applySetUpdate(exerciseId, setIndex, field, value);
+  }, [applySetUpdate]);
 
   const applySetUpdate = useCallback((exerciseId, setIndex, field, parsedValue) => {
     setActiveWorkout((prev) => {
@@ -826,16 +840,16 @@ function MainApp() {
                 const timed = exType === 'timed';
 
                 const histBest = getHistoricalBestForExercise(history, ex);
-                const currentWeight = Number(updatedSet.weight) || 0;
-                const currentReps = Number(updatedSet.reps) || 0;
+                const currentWeight = parseWorkoutNumber(updatedSet.weight);
+                const currentReps = parseWorkoutNumber(updatedSet.reps);
 
                 let currentSessionMaxWeight = 0;
                 let currentSessionMaxReps = 0;
 
                 ex.setDetails.forEach((s, sIdx) => {
                   if (s.completed && sIdx !== setIndex) {
-                    if (Number(s.weight) > currentSessionMaxWeight) currentSessionMaxWeight = Number(s.weight);
-                    if (Number(s.reps) > currentSessionMaxReps) currentSessionMaxReps = Number(s.reps);
+                    if (parseWorkoutNumber(s.weight) > currentSessionMaxWeight) currentSessionMaxWeight = parseWorkoutNumber(s.weight);
+                    if (parseWorkoutNumber(s.reps) > currentSessionMaxReps) currentSessionMaxReps = parseWorkoutNumber(s.reps);
                   }
                 });
 
@@ -926,8 +940,6 @@ function MainApp() {
   }, [activeWorkout]);
 
   const addSetToExercise = useCallback((exerciseId) => {
-    if (!activeWorkout) return;
-
     setActiveWorkout((prev) => {
       if (!prev) return prev;
 
@@ -1055,8 +1067,6 @@ function MainApp() {
   }, [activeWorkout, editingRestExerciseId, tempRestTime]);
 
   const updateTemplateSetDetail = useCallback((exerciseId, setIndex, field, value) => {
-    if (!templateWorkout) return;
-
     setTemplateWorkout((prev) => {
       if (!prev) return prev;
 
@@ -1070,15 +1080,7 @@ function MainApp() {
             setDetails: (ex.setDetails || []).map((sd, idx) => {
               if (idx !== setIndex) return sd;
 
-              let parsedValue = value;
-              if (field === 'reps' || field === 'duration') {
-                parsedValue = parseInt(value || '0', 10) || 0;
-              }
-              if (field === 'weight') {
-                parsedValue = parseFloat(value || '0') || 0;
-              }
-
-              return { ...sd, [field]: parsedValue };
+              return { ...sd, [field]: value };
             }),
           };
         }),
@@ -1087,8 +1089,6 @@ function MainApp() {
   }, []);
 
   const addSetToTemplateExercise = useCallback((exerciseId) => {
-    if (!templateWorkout) return;
-
     setTemplateWorkout((prev) => {
       if (!prev) return prev;
 
@@ -1242,7 +1242,12 @@ function MainApp() {
       const exType = ex.type || 'weight_reps';
       const timed = exType === 'timed';
       const repsOnly = exType === 'reps';
-      const details = ex.setDetails || [];
+      const details = (ex.setDetails || []).map((sd) => ({
+        ...sd,
+        weight: timed || repsOnly ? 0 : parseWorkoutNumber(sd.weight),
+        reps: timed ? 0 : parseWorkoutNumber(sd.reps),
+        duration: timed ? parseWorkoutNumber(sd.duration) : 0,
+      }));
       const first = details[0] || {};
 
       return {

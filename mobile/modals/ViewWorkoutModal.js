@@ -3,6 +3,9 @@ import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useEffectiveDark } from '../context/SettingsContext';
 import { getStyles } from '../styles/styles';
 
+const isTimedExercise = (type) =>
+  type === 'timed' || type === 'time' || type === 'plank' || type === 'cardio';
+
 export default function ViewWorkoutModal({
   showViewWorkout,
   setShowViewWorkout,
@@ -26,11 +29,9 @@ export default function ViewWorkoutModal({
                 <View key={ex.id} style={styles.viewExerciseItem}>
                   <Text style={styles.viewExerciseName}>{ex.name}</Text>
 
-                  {ex.type === 'time' ||
-                  ex.type === 'plank' ||
-                  ex.type === 'cardio' ? (
+                  {isTimedExercise(ex.type) ? (
                     <Text style={styles.viewExerciseDetails}>
-                      {ex.sets} serie × {ex.duration}s
+                      {ex.sets} serie × {ex.duration || 0} min
                     </Text>
                   ) : (
                     <>

@@ -5,6 +5,9 @@ import { useEffectiveDark } from '../context/SettingsContext';
 import { getStyles } from '../styles/styles';
 import { getBadgeDefinition } from '../utils/progress';
 
+const isTimedExercise = (type) =>
+  type === 'timed' || type === 'time' || type === 'plank' || type === 'cardio';
+
 export default function HistoryDetailModal({
   showHistoryDetailModal,
   setShowHistoryDetailModal,
@@ -115,10 +118,8 @@ export default function HistoryDetailModal({
                   <View key={idx} style={{ marginBottom: 2 }}>
                     <Text style={styles.viewExerciseDetails}>
                       Serie {idx + 1}:{' '}
-                      {ex.type === 'time' ||
-                      ex.type === 'plank' ||
-                      ex.type === 'cardio'
-                        ? `${sd.duration || 0}s`
+                      {isTimedExercise(ex.type)
+                        ? `${sd.duration || 0} min`
                         : `${sd.reps || 0} reps @ ${sd.weight || 0}kg`}{' '}
                       {sd.completed ? '✓' : ''}
                     </Text>

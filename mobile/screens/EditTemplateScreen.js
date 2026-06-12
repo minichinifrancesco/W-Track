@@ -1,13 +1,26 @@
-import React from 'react';
-import { SafeAreaView, View, Text, TouchableOpacity, TextInput } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  Keyboard,
+  Platform,
+  SafeAreaView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from 'react-native';
 import { useEffectiveDark, useSettings } from '../context/SettingsContext';
 import { Swipeable } from 'react-native-gesture-handler';
 import { getStyles } from '../styles/styles';
 import DraggableExerciseList from '../components/DraggableExerciseList';
+import DraftTextInput from '../components/DraftTextInput';
 import HelpButton from '../components/HelpModal';
+import KeyboardDoneToolbar from '../components/KeyboardDoneToolbar';
 
 const isTimed = (type) => type === 'timed';
 const isRepsOnly = (type) => type === 'reps';
+const keyboardAccessoryId = 'edit-template-keyboard-accessory';
+const normalizeNumberInput = (value) => (value === '' ? '0' : value);
 
 export default function EditTemplateScreen({
   templateWorkout,
@@ -30,6 +43,22 @@ export default function EditTemplateScreen({
   const isDarkMode = useEffectiveDark();
   const { settings } = useSettings();
   const styles = getStyles(isDarkMode);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
   if (!templateWorkout) return null;
 
   const openAddExercise = () => {
@@ -53,9 +82,25 @@ export default function EditTemplateScreen({
           <Text style={styles.backButton}>← Indietro</Text>
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>Modifica scheda</Text>
+        <Text style={styles.headerTitle}>
+          {templateWorkout.isNew ? 'Nuova scheda' : 'Modifica scheda'}
+        </Text>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          {keyboardVisible && Platform.OS !== 'ios' && (
+            <TouchableOpacity
+              onPress={Keyboard.dismiss}
+              style={{
+                backgroundColor: isDarkMode ? '#334155' : '#e2e8f0',
+                paddingHorizontal: 12,
+                paddingVertical: 7,
+                borderRadius: 999,
+              }}>
+              <Text style={{ color: isDarkMode ? '#f8fafc' : '#0f172a', fontWeight: '700', fontSize: 13 }}>
+                Fine
+              </Text>
+            </TouchableOpacity>
+          )}
           <HelpButton screen="edit" />
           <TouchableOpacity
             onPress={saveTemplateWorkout}
@@ -89,12 +134,16 @@ export default function EditTemplateScreen({
             setTemplateWorkout((prev) => ({ ...prev, name: text }))
           }
           placeholder="Nome scheda"
+          inputAccessoryViewID={keyboardAccessoryId}
           returnKeyType="done"
+          onSubmitEditing={Keyboard.dismiss}
+          blurOnSubmit
         />
       </View>
 
       {/* EXERCISE LIST — flex:1, scrollable, add button at bottom */}
-      <View style={{ flex: 1 }}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={{ flex: 1 }}>
         <DraggableExerciseList
           items={templateWorkout.exercises}
           onReorder={(newExercises) =>
@@ -124,8 +173,8 @@ export default function EditTemplateScreen({
                   <Text style={styles.deleteSetSwipeText}>Elimina</Text>
                 </TouchableOpacity>
               )}>
-              <TouchableOpacity activeOpacity={1} onLongPress={triggerDrag}>
-                <View style={styles.activeExerciseCard}>
+              <View style={styles.activeExerciseCard}>
+                <TouchableOpacity activeOpacity={1} onLongPress={triggerDrag}>
                   <View style={styles.exerciseHeaderRow}>
                     <TouchableOpacity
                       style={styles.exerciseTitleContainer}
@@ -145,6 +194,7 @@ export default function EditTemplateScreen({
                       </Text>
                     ) : null}
                   </View>
+                </TouchableOpacity>
 
                   {timed ? (
                     <>
@@ -164,13 +214,18 @@ export default function EditTemplateScreen({
                           )}>
                           <View style={styles.setRow}>
                             <Text style={styles.setCellSerie}>{setIndex + 1}</Text>
-                            <TextInput
+                            <DraftTextInput
                               style={styles.setCellInput}
                               keyboardType="decimal-pad"
-                              value={String(sd.duration ?? 0)}
-                              onChangeText={(t) =>
+                              returnKeyType={Platform.OS === 'ios' ? 'done' : 'default'}
+                              inputAccessoryViewID={keyboardAccessoryId}
+                              value={sd.duration}
+                              fallback={0}
+                              normalizeOnCommit={normalizeNumberInput}
+                              onCommit={(t) =>
                                 updateTemplateSetDetail(ex.id, setIndex, 'duration', t)
                               }
+                              onSubmitEditing={Keyboard.dismiss}
                             />
                           </View>
                         </Swipeable>
@@ -194,13 +249,18 @@ export default function EditTemplateScreen({
                           )}>
                           <View style={styles.setRow}>
                             <Text style={styles.setCellSerie}>{setIndex + 1}</Text>
-                            <TextInput
+                            <DraftTextInput
                               style={styles.setCellInput}
                               keyboardType="numeric"
-                              value={String(sd.reps ?? 0)}
-                              onChangeText={(t) =>
+                              returnKeyType={Platform.OS === 'ios' ? 'done' : 'default'}
+                              inputAccessoryViewID={keyboardAccessoryId}
+                              value={sd.reps}
+                              fallback={0}
+                              normalizeOnCommit={normalizeNumberInput}
+                              onCommit={(t) =>
                                 updateTemplateSetDetail(ex.id, setIndex, 'reps', t)
                               }
+                              onSubmitEditing={Keyboard.dismiss}
                             />
                           </View>
                         </Swipeable>
@@ -225,21 +285,31 @@ export default function EditTemplateScreen({
                           )}>
                           <View style={styles.setRow}>
                             <Text style={styles.setCellSerie}>{setIndex + 1}</Text>
-                            <TextInput
+                            <DraftTextInput
                               style={styles.setCellInput}
                               keyboardType="decimal-pad"
-                              value={String(sd.weight ?? 0)}
-                              onChangeText={(t) =>
+                              returnKeyType={Platform.OS === 'ios' ? 'done' : 'default'}
+                              inputAccessoryViewID={keyboardAccessoryId}
+                              value={sd.weight}
+                              fallback={0}
+                              normalizeOnCommit={normalizeNumberInput}
+                              onCommit={(t) =>
                                 updateTemplateSetDetail(ex.id, setIndex, 'weight', t)
                               }
+                              onSubmitEditing={Keyboard.dismiss}
                             />
-                            <TextInput
+                            <DraftTextInput
                               style={styles.setCellInput}
                               keyboardType="numeric"
-                              value={String(sd.reps ?? 0)}
-                              onChangeText={(t) =>
+                              returnKeyType={Platform.OS === 'ios' ? 'done' : 'default'}
+                              inputAccessoryViewID={keyboardAccessoryId}
+                              value={sd.reps}
+                              fallback={0}
+                              normalizeOnCommit={normalizeNumberInput}
+                              onCommit={(t) =>
                                 updateTemplateSetDetail(ex.id, setIndex, 'reps', t)
                               }
+                              onSubmitEditing={Keyboard.dismiss}
                             />
                           </View>
                         </Swipeable>
@@ -252,7 +322,7 @@ export default function EditTemplateScreen({
                     <Text style={{ fontSize: 13, color: isDarkMode ? '#94a3b8' : '#64748b', fontWeight: '600', marginRight: 6 }}>
                       Timer recupero:
                     </Text>
-                    <TextInput
+                    <DraftTextInput
                       style={{
                         borderWidth: 1,
                         borderColor: isDarkMode ? '#334155' : '#cbd5e1',
@@ -267,19 +337,23 @@ export default function EditTemplateScreen({
                         backgroundColor: isDarkMode ? '#1e293b' : '#f8fafc',
                       }}
                       keyboardType="numeric"
-                      value={String(ex.restTime ?? 60)}
-                      onChangeText={(val) => {
-                        const parsed = parseInt(val, 10) || 0;
+                      returnKeyType={Platform.OS === 'ios' ? 'done' : 'default'}
+                      inputAccessoryViewID={keyboardAccessoryId}
+                      value={ex.restTime}
+                      fallback={60}
+                      normalizeOnCommit={normalizeNumberInput}
+                      onCommit={(val) => {
                         setTemplateWorkout((prev) => {
                           if (!prev) return prev;
                           return {
                             ...prev,
                             exercises: prev.exercises.map((e) =>
-                              e.id === ex.id ? { ...e, restTime: parsed } : e
+                              e.id === ex.id ? { ...e, restTime: val } : e
                             ),
                           };
                         });
                       }}
+                      onSubmitEditing={Keyboard.dismiss}
                     />
                     <Text style={{ fontSize: 13, color: isDarkMode ? '#94a3b8' : '#64748b', marginLeft: 4 }}>
                       secondi
@@ -290,7 +364,7 @@ export default function EditTemplateScreen({
                   {settings.showExerciseNotes !== false && (
                     <View style={{ marginTop: 10, marginBottom: 8, paddingHorizontal: 4 }}>
                       <Text style={{ fontSize: 12, fontWeight: '700', color: isDarkMode ? '#cbd5e1' : '#475569', marginBottom: 4 }}>Note esercizio:</Text>
-                      <TextInput
+                      <DraftTextInput
                         style={{
                           backgroundColor: isDarkMode ? '#1e293b' : '#f8fafc',
                           borderWidth: 1,
@@ -304,7 +378,8 @@ export default function EditTemplateScreen({
                         placeholder="Aggiungi una nota (es. impugnatura, altezza sedile...)"
                         placeholderTextColor={isDarkMode ? '#64748b' : '#94a3b8'}
                         value={ex.note || ''}
-                        onChangeText={(val) => {
+                        inputAccessoryViewID={keyboardAccessoryId}
+                        onCommit={(val) => {
                           setTemplateWorkout((prev) => {
                             if (!prev) return prev;
                             return {
@@ -316,6 +391,9 @@ export default function EditTemplateScreen({
                           });
                         }}
                         multiline
+                        blurOnSubmit
+                        returnKeyType="done"
+                        onSubmitEditing={Keyboard.dismiss}
                       />
                     </View>
                   )}
@@ -325,13 +403,18 @@ export default function EditTemplateScreen({
                     onPress={() => addSetToTemplateExercise(ex.id)}>
                     <Text style={styles.addSetRowButtonText}>+ Aggiungi serie</Text>
                   </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
+              </View>
             </Swipeable>
           );
         }}
       />
-      </View>
+        </View>
+      </TouchableWithoutFeedback>
+
+      <KeyboardDoneToolbar
+        enabled={Platform.OS === 'ios'}
+        isDarkMode={isDarkMode}
+      />
     </SafeAreaView>
   );
 }

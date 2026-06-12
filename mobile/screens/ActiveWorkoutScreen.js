@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
+  Keyboard,
+  Platform,
   SafeAreaView,
   View,
   Image,
@@ -8,6 +10,7 @@ import {
   TextInput,
   Modal,
   Alert,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useEffectiveDark, useSettings } from '../context/SettingsContext';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -15,10 +18,14 @@ import { logoCompact, COLORS } from '../constants';
 import { Ionicons } from '@expo/vector-icons';
 import { getStyles } from '../styles/styles';
 import DraggableExerciseList from '../components/DraggableExerciseList';
+import DraftTextInput from '../components/DraftTextInput';
 import HelpButton from '../components/HelpModal';
+import KeyboardDoneToolbar from '../components/KeyboardDoneToolbar';
 
 const isTimed = (type) => type === 'timed';
 const isRepsOnly = (type) => type === 'reps';
+const keyboardAccessoryId = 'active-workout-keyboard-accessory';
+const normalizeNumberInput = (value) => (value === '' ? '0' : value);
 
 function computeSessionStats(exercises) {
   const stats = {};
@@ -251,6 +258,9 @@ export default function ActiveWorkoutScreen({
               value={workoutTimeInput}
               onChangeText={setWorkoutTimeInput}
               keyboardType="numbers-and-punctuation"
+              returnKeyType="done"
+              inputAccessoryViewID={keyboardAccessoryId}
+              onSubmitEditing={Keyboard.dismiss}
               autoFocus
               placeholder="HH:MM:SS"
               placeholderTextColor={isDarkMode ? '#64748b' : '#94a3b8'}
@@ -273,7 +283,8 @@ export default function ActiveWorkoutScreen({
       </View>
 
       {/* EXERCISE LIST — flex:1 so it fills remaining space and scrolls */}
-      <View style={{ flex: 1 }}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={{ flex: 1 }}>
         <DraggableExerciseList
           items={activeWorkout.exercises}
           onReorder={(newExercises) =>
@@ -298,8 +309,8 @@ export default function ActiveWorkoutScreen({
                   <Text style={styles.deleteSetSwipeText}>Elimina</Text>
                 </TouchableOpacity>
               )}>
-              <TouchableOpacity activeOpacity={0.9} onLongPress={triggerDrag}>
-                <View style={styles.activeExerciseCard}>
+              <View style={styles.activeExerciseCard}>
+                <TouchableOpacity activeOpacity={0.9} onLongPress={triggerDrag}>
                   <View style={styles.exerciseHeaderRow}>
                     {hasRestTime ? (
                       <TouchableOpacity
@@ -342,6 +353,7 @@ export default function ActiveWorkoutScreen({
                       <Ionicons name="swap-horizontal" size={14} color="#15803d" />
                     </TouchableOpacity>
                   </View>
+                </TouchableOpacity>
 
                   {timed ? (
                     <>
@@ -367,11 +379,16 @@ export default function ActiveWorkoutScreen({
                                 <Ionicons name="medal" size={13} color="#eab308" />
                               )}
                             </View>
-                            <TextInput
+                            <DraftTextInput
                               style={styles.setCellInput}
                               keyboardType="decimal-pad"
-                              value={String(sd.duration ?? 0)}
-                              onChangeText={(t) => updateSetDetail(ex.id, setIndex, 'duration', t)}
+                              returnKeyType={Platform.OS === 'ios' ? 'done' : 'default'}
+                              inputAccessoryViewID={keyboardAccessoryId}
+                              value={sd.duration}
+                              fallback={0}
+                              normalizeOnCommit={normalizeNumberInput}
+                              onCommit={(t) => updateSetDetail(ex.id, setIndex, 'duration', t)}
+                              onSubmitEditing={Keyboard.dismiss}
                             />
                             <TouchableOpacity
                               style={[styles.checkButton, sd.completed && styles.checkButtonComplete]}
@@ -406,11 +423,16 @@ export default function ActiveWorkoutScreen({
                                 <Ionicons name="medal" size={13} color="#eab308" />
                               )}
                             </View>
-                            <TextInput
+                            <DraftTextInput
                               style={styles.setCellInput}
                               keyboardType="numeric"
-                              value={String(sd.reps ?? 0)}
-                              onChangeText={(t) => updateSetDetail(ex.id, setIndex, 'reps', t)}
+                              returnKeyType={Platform.OS === 'ios' ? 'done' : 'default'}
+                              inputAccessoryViewID={keyboardAccessoryId}
+                              value={sd.reps}
+                              fallback={0}
+                              normalizeOnCommit={normalizeNumberInput}
+                              onCommit={(t) => updateSetDetail(ex.id, setIndex, 'reps', t)}
+                              onSubmitEditing={Keyboard.dismiss}
                             />
                             <TouchableOpacity
                               style={[styles.checkButton, sd.completed && styles.checkButtonComplete]}
@@ -446,17 +468,27 @@ export default function ActiveWorkoutScreen({
                                 <Ionicons name="medal" size={13} color="#eab308" />
                               )}
                             </View>
-                            <TextInput
+                            <DraftTextInput
                               style={styles.setCellInput}
                               keyboardType="decimal-pad"
-                              value={String(sd.weight ?? 0)}
-                              onChangeText={(t) => updateSetDetail(ex.id, setIndex, 'weight', t)}
+                              returnKeyType={Platform.OS === 'ios' ? 'done' : 'default'}
+                              inputAccessoryViewID={keyboardAccessoryId}
+                              value={sd.weight}
+                              fallback={0}
+                              normalizeOnCommit={normalizeNumberInput}
+                              onCommit={(t) => updateSetDetail(ex.id, setIndex, 'weight', t)}
+                              onSubmitEditing={Keyboard.dismiss}
                             />
-                            <TextInput
+                            <DraftTextInput
                               style={styles.setCellInput}
                               keyboardType="numeric"
-                              value={String(sd.reps ?? 0)}
-                              onChangeText={(t) => updateSetDetail(ex.id, setIndex, 'reps', t)}
+                              returnKeyType={Platform.OS === 'ios' ? 'done' : 'default'}
+                              inputAccessoryViewID={keyboardAccessoryId}
+                              value={sd.reps}
+                              fallback={0}
+                              normalizeOnCommit={normalizeNumberInput}
+                              onCommit={(t) => updateSetDetail(ex.id, setIndex, 'reps', t)}
+                              onSubmitEditing={Keyboard.dismiss}
                             />
                             <TouchableOpacity
                               style={[styles.checkButton, sd.completed && styles.checkButtonComplete]}
@@ -473,7 +505,7 @@ export default function ActiveWorkoutScreen({
                   {settings.showExerciseNotes !== false && (
                     <View style={{ marginTop: 10, marginBottom: 4, paddingHorizontal: 4 }}>
                       <Text style={{ fontSize: 12, fontWeight: '700', color: isDarkMode ? '#cbd5e1' : '#475569', marginBottom: 4 }}>Note esercizio:</Text>
-                      <TextInput
+                      <DraftTextInput
                         style={{
                           backgroundColor: isDarkMode ? '#1e293b' : '#f8fafc',
                           borderWidth: 1,
@@ -487,8 +519,11 @@ export default function ActiveWorkoutScreen({
                         placeholder="Aggiungi una nota (es. impugnatura, altezza sedile...)"
                         placeholderTextColor={isDarkMode ? '#64748b' : '#94a3b8'}
                         value={ex.note || ''}
-                        onChangeText={(val) => handleNoteChange(ex.id, val)}
+                        onCommit={(val) => handleNoteChange(ex.id, val)}
                         multiline
+                        blurOnSubmit
+                        returnKeyType="done"
+                        onSubmitEditing={Keyboard.dismiss}
                       />
                     </View>
                   )}
@@ -498,13 +533,18 @@ export default function ActiveWorkoutScreen({
                     onPress={() => addSetToExercise(ex.id)}>
                     <Text style={styles.addSetRowButtonText}>+ Aggiungi serie</Text>
                   </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
+              </View>
             </Swipeable>
           );
         }}
       />
-      </View>
+        </View>
+      </TouchableWithoutFeedback>
+
+      <KeyboardDoneToolbar
+        enabled={Platform.OS === 'ios'}
+        isDarkMode={isDarkMode}
+      />
 
       {/* FOOTER RECOVERY TIMER */}
       {timerActive || timer > 0 ? (

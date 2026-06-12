@@ -8,6 +8,7 @@ import {
   UIManager,
   Platform,
   Dimensions,
+  Keyboard,
 } from 'react-native';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -255,9 +256,11 @@ export default function DraggableExerciseList({
       onScroll={(e) => {
         scrollOffset.current = e.nativeEvent.contentOffset.y;
       }}
+      onScrollBeginDrag={Keyboard.dismiss}
       scrollEventThrottle={8}
       contentContainerStyle={[cleanContentStyle, { paddingBottom: 100 }]}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
     >
       <View {...panResponder.panHandlers}>
         {localItems.map((item) => {
