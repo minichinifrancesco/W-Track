@@ -49,6 +49,7 @@ yarn-error.log*
 !.vscode/settings.json
 !.vscode/extensions.json
 !.vscode/launch.json
+/mobile/.vscode
 .DS_Store
 Thumbs.db
 
