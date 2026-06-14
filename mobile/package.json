@@ -2,10 +2,11 @@
   "license": "0BSD",
   "main": "index.js",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "start": "node scripts/start-expo-lan.cjs",
+    "start:expo": "expo start",
+    "android": "node scripts/start-expo-lan.cjs --android",
+    "ios": "node scripts/start-expo-lan.cjs --ios",
+    "web": "node scripts/start-expo-lan.cjs --web"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
