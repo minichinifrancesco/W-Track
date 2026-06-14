@@ -32,7 +32,6 @@ expo-env.d.ts
 # Local database and generated Prisma output
 *.sqlite
 *.sqlite-journal
-server/prisma/dev.db
 server/prisma/dev.db-journal
 /server/generated/prisma/
 

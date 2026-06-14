@@ -6,9 +6,16 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { getStyles } from './styles/styles';
 import { SettingsProvider, useEffectiveDark, useSettings } from './context/SettingsContext';
 import { Ionicons } from '@expo/vector-icons';
-
-// Constants & Helper functions
-import { PRESET_EXERCISES } from './constants';
+import {
+  createCustomExercise as createCustomExerciseRequest,
+  deleteCustomExercise as deleteCustomExerciseRequest,
+  getExercises,
+  getUserData,
+  login as loginRequest,
+  register as registerRequest,
+  saveUserData,
+  updateProfile,
+} from './services/api';
 
 // Screens
 import LoginScreen from './screens/LoginScreen';
@@ -113,8 +120,12 @@ function MainApp() {
   const [currentScreen, setCurrentScreen] = useState('login');
 
   const [user, setUser] = useState(null);
+  const [authToken, setAuthToken] = useState(null);
+  const [isHydrating, setIsHydrating] = useState(true);
+  const [authLoading, setAuthLoading] = useState(false);
   const [workouts, setWorkouts] = useState([]);
-  const [exercises, setExercises] = useState(PRESET_EXERCISES);
+  const [baseExercises, setBaseExercises] = useState([]);
+  const [exercises, setExercises] = useState([]);
   const [history, setHistory] = useState([]);
   const [badges, setBadges] = useState([]);
 
@@ -188,7 +199,7 @@ function MainApp() {
   const [templateDuration, setTemplateDuration] = useState('');
 
   useEffect(() => {
-    loadData();
+    bootstrapApp();
   }, []);
 
   useEffect(() => {
@@ -250,44 +261,243 @@ function MainApp() {
     return () => clearInterval(interval);
   }, [activeWorkout, isPaused]);
 
+  const saveDebounceTimer = useRef(null);
+
+  const getStorageUserId = (targetUser = user) =>
+    targetUser?.id ? String(targetUser.id) : targetUser?.email || 'guest';
+
+  const getUserStorageKey = (targetUser, key) =>
+    `user:${getStorageUserId(targetUser)}:${key}`;
+
+  const readJsonArray = async (key) => {
+    const value = await AsyncStorage.getItem(key);
+    if (!value) return null;
+
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const isCustomExercise = (exercise) =>
+    exercise?.custom === true || exercise?.source === 'CUSTOM';
+
+  const getCustomExercises = (value) =>
+    Array.isArray(value) ? value.filter(isCustomExercise) : [];
+
+  const mergeExerciseCatalog = (catalog = [], savedExercises = []) => {
+    const merged = [...catalog, ...getCustomExercises(savedExercises)];
+    const seen = new Set();
+    return merged.filter((exercise) => {
+      const key = `${exercise.id}:${exercise.name}:${exercise.muscleGroup}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
+  const normalizeExercises = (value, catalog = baseExercises) => {
+    return mergeExerciseCatalog(catalog, value);
+  };
+
+  const loadExerciseCatalog = async (token) => {
+    try {
+      const catalog = await getExercises(token);
+      const safeCatalog = Array.isArray(catalog) ? catalog : [];
+      if (!token) {
+        setBaseExercises(safeCatalog);
+      }
+      setExercises(safeCatalog);
+      return safeCatalog;
+    } catch (error) {
+      console.error('Errore caricamento catalogo esercizi:', error.message || error);
+      return token ? baseExercises : [];
+    }
+  };
+
+  const bootstrapApp = async () => {
+    const catalog = await loadExerciseCatalog();
+    await loadStoredSession(catalog);
+  };
+
+  const hasAnyAppData = (data) =>
+    (Array.isArray(data?.workouts) && data.workouts.length > 0) ||
+    getCustomExercises(data?.exercises).length > 0 ||
+    (Array.isArray(data?.history) && data.history.length > 0) ||
+    (Array.isArray(data?.badges) && data.badges.length > 0);
+
+  const saveLocalUserData = async (targetUser, data) => {
+    const customExercises = getCustomExercises(data.exercises);
+    await AsyncStorage.setItem(
+      getUserStorageKey(targetUser, 'workouts'),
+      JSON.stringify(data.workouts || [])
+    );
+    await AsyncStorage.setItem(
+      getUserStorageKey(targetUser, 'exercises'),
+      JSON.stringify(customExercises)
+    );
+    await AsyncStorage.setItem(
+      getUserStorageKey(targetUser, 'history'),
+      JSON.stringify(data.history || [])
+    );
+    await AsyncStorage.setItem(
+      getUserStorageKey(targetUser, 'badges'),
+      JSON.stringify(data.badges || [])
+    );
+  };
+
+  const loadLocalUserData = async (targetUser) => ({
+    workouts: (await readJsonArray(getUserStorageKey(targetUser, 'workouts'))) || [],
+    exercises:
+      (await readJsonArray(getUserStorageKey(targetUser, 'exercises'))) || [],
+    history: (await readJsonArray(getUserStorageKey(targetUser, 'history'))) || [],
+    badges: (await readJsonArray(getUserStorageKey(targetUser, 'badges'))) || [],
+  });
+
+  const loadLegacyData = async () => ({
+    workouts: (await readJsonArray('workouts')) || [],
+    exercises: (await readJsonArray('exercises')) || [],
+    history: (await readJsonArray('history')) || [],
+    badges: (await readJsonArray('badges')) || [],
+  });
+
+  const applyUserProfile = (targetUser) => {
+    setProfileName(targetUser?.name || '');
+    setProfileAge(targetUser?.age ? String(targetUser.age) : '');
+    setProfileHeight(targetUser?.height ? String(targetUser.height) : '');
+    setProfileWeight(targetUser?.weight ? String(targetUser.weight) : '');
+  };
+
+  const saveSession = async (token, targetUser) => {
+    await AsyncStorage.setItem(
+      'authSession',
+      JSON.stringify({ token, user: targetUser })
+    );
+  };
+
+  const saveData = useCallback(async () => {
+    const data = {
+      workouts,
+      exercises: getCustomExercises(exercises),
+      history,
+      badges,
+    };
+
+    try {
+      await saveLocalUserData(user, data);
+      await saveSession(authToken, user);
+      await saveUserData(authToken, {
+        workouts,
+        exercises: getCustomExercises(exercises),
+        history,
+      });
+    } catch (error) {
+      console.error('Errore salvataggio dati:', error.message || error);
+    }
+  }, [user, authToken, workouts, exercises, history, badges]);
+
   useEffect(() => {
-    if (!user) return;
-    // Debounce: cancel any pending save and schedule a new one 600ms later.
-    // This prevents flooding AsyncStorage during rapid state changes (e.g. typing in set inputs).
+    if (!user || !authToken || isHydrating) return;
+
     if (saveDebounceTimer.current) clearTimeout(saveDebounceTimer.current);
     saveDebounceTimer.current = setTimeout(() => {
       saveData();
     }, 600);
+
     return () => {
       if (saveDebounceTimer.current) clearTimeout(saveDebounceTimer.current);
     };
-  }, [user, workouts, exercises, history, badges, saveData]);
+  }, [user, authToken, workouts, exercises, history, badges, isHydrating, saveData]);
 
-  // Debounce ref for saveData — prevents firing dozens of AsyncStorage writes
-  // per second when user types in set inputs during an active workout.
-  const saveDebounceTimer = useRef(null);
-
-  const saveData = useCallback(async () => {
+  const loadStoredSession = async (catalog = baseExercises) => {
     try {
-      await AsyncStorage.setItem('workouts', JSON.stringify(workouts));
-      // Safety guard: never overwrite exercises with an empty array.
-      // If exercises is empty it means loadData() hasn't resolved yet — skip saving.
-      if (exercises && exercises.length > 0) {
-        await AsyncStorage.setItem('exercises', JSON.stringify(exercises));
+      const sessionData = await AsyncStorage.getItem('authSession');
+      if (!sessionData) {
+        setExercises(catalog);
+        return;
       }
-      await AsyncStorage.setItem('history', JSON.stringify(history));
-      await AsyncStorage.setItem('badges', JSON.stringify(badges));
-      await AsyncStorage.setItem('user', JSON.stringify(user));
+
+      const session = JSON.parse(sessionData);
+      if (!session?.token || !session?.user) return;
+
+      setIsHydrating(true);
+      setAuthToken(session.token);
+      setUser(session.user);
+      applyUserProfile(session.user);
+      setCurrentScreen('home');
+      const authenticatedCatalog = await loadExerciseCatalog(session.token);
+      await loadUserData(
+        session.token,
+        session.user,
+        true,
+        authenticatedCatalog.length > 0 ? authenticatedCatalog : catalog
+      );
     } catch (error) {
-      console.error('Errore salvataggio dati:', error);
+      console.error('Errore caricamento sessione:', error.message || error);
+      await AsyncStorage.removeItem('authSession');
+    } finally {
+      setIsHydrating(false);
     }
-  }, [workouts, exercises, history, badges, user]);
+  };
+
+  const loadUserData = async (
+    token,
+    targetUser,
+    allowLegacyMigration = false,
+    catalog = baseExercises
+  ) => {
+    let serverData = null;
+    try {
+      serverData = await getUserData(token);
+    } catch (error) {
+      console.error('Errore caricamento dati server:', error.message || error);
+    }
+
+    const localData = await loadLocalUserData(targetUser);
+    const legacyData = allowLegacyMigration ? await loadLegacyData() : null;
+    const selectedData =
+      (hasAnyAppData(serverData) && serverData) ||
+      (hasAnyAppData(localData) && localData) ||
+      (hasAnyAppData(legacyData) && legacyData) ||
+      {};
+
+    const selectedBadges =
+      (Array.isArray(localData.badges) && localData.badges.length > 0 && localData.badges) ||
+      (Array.isArray(legacyData?.badges) && legacyData.badges.length > 0 && legacyData.badges) ||
+      (Array.isArray(serverData?.badges) && serverData.badges) ||
+      [];
+
+    const nextData = {
+      workouts: Array.isArray(selectedData.workouts) ? selectedData.workouts : [],
+      exercises: normalizeExercises(selectedData.exercises, catalog),
+      history: Array.isArray(selectedData.history) ? selectedData.history : [],
+      badges: selectedBadges,
+    };
+
+    setWorkouts(nextData.workouts);
+    setExercises(nextData.exercises);
+    setHistory(nextData.history);
+    setBadges(nextData.badges);
+    await saveLocalUserData(targetUser, nextData);
+
+    try {
+      await saveUserData(token, {
+        workouts: nextData.workouts,
+        exercises: getCustomExercises(nextData.exercises),
+        history: nextData.history,
+      });
+    } catch (error) {
+      console.error('Errore sincronizzazione iniziale:', error.message || error);
+    }
+  };
 
   const openExerciseDescription = useCallback((exercise) => {
     if (!exercise) return;
-    const fullExercise = exercises.find(e => 
-      e.id === exercise.exerciseId || 
-      e.id === exercise.id || 
+    const fullExercise = exercises.find(e =>
+      e.id === exercise.exerciseId ||
+      e.id === exercise.id ||
       (e.name && exercise.name && e.name.toLowerCase().trim() === exercise.name.toLowerCase().trim())
     );
     setSelectedDescriptionExercise(fullExercise || exercise);
@@ -302,57 +512,6 @@ function MainApp() {
   const handleGoToActiveWorkout = useCallback(() => {
     setCurrentScreen('activeWorkout');
   }, []);
-
-  const loadData = async () => {
-    try {
-      const workoutsData = await AsyncStorage.getItem('workouts');
-      const exercisesData = await AsyncStorage.getItem('exercises');
-      const historyData = await AsyncStorage.getItem('history');
-      const badgesData = await AsyncStorage.getItem('badges');
-      const userData = await AsyncStorage.getItem('user');
-
-      if (workoutsData) setWorkouts(JSON.parse(workoutsData));
-
-      if (exercisesData) {
-        const parsed = JSON.parse(exercisesData);
-        // Reset if parsed is empty, or if it's missing the 'Adductor machine' exercise
-        // (which was added in the latest preset update). Allow custom exercises (length > PRESET_EXERCISES.length).
-        const presetCount = PRESET_EXERCISES.filter(e => !e.custom).length;
-        const needsReset =
-          !parsed ||
-          !Array.isArray(parsed) ||
-          parsed.length === 0 ||
-          !parsed.some(ex => ex.name === 'Adductor machine') ||
-          parsed.filter(ex => !ex.custom).length < presetCount;
-        if (needsReset) {
-          // Preserve any custom exercises the user created and merge with fresh presets
-          const customExercises = Array.isArray(parsed) ? parsed.filter(ex => ex.custom) : [];
-          const merged = [...PRESET_EXERCISES, ...customExercises];
-          setExercises(merged);
-          await AsyncStorage.setItem('exercises', JSON.stringify(merged));
-        } else {
-          setExercises(parsed);
-        }
-      } else {
-        setExercises(PRESET_EXERCISES);
-        await AsyncStorage.setItem('exercises', JSON.stringify(PRESET_EXERCISES));
-      }
-
-      if (historyData) setHistory(JSON.parse(historyData));
-      if (badgesData) setBadges(JSON.parse(badgesData));
-      if (userData) {
-        const parsed = JSON.parse(userData);
-        setUser(parsed);
-        setCurrentScreen('home');
-        setProfileName(parsed.name || '');
-        setProfileAge(parsed.age ? String(parsed.age) : '');
-        setProfileHeight(parsed.height ? String(parsed.height) : '');
-        setProfileWeight(parsed.weight ? String(parsed.weight) : '');
-      }
-    } catch (error) {
-      console.error('Errore caricamento dati:', error);
-    }
-  };
 
   const formatWorkoutTime = useCallback((totalSeconds) => {
     const hours = Math.floor(totalSeconds / 3600);
@@ -397,7 +556,26 @@ function MainApp() {
     return Math.round(totalSeconds / 3600);
   }, [history]);
 
-  const handleLogin = useCallback(() => {
+  const completeAuth = async ({ token, user: nextUser }, migrateLegacyData) => {
+    setIsHydrating(true);
+    try {
+      setAuthToken(token);
+      setUser(nextUser);
+      applyUserProfile(nextUser);
+      await saveSession(token, nextUser);
+      setCurrentScreen('home');
+      setPassword('');
+      const catalog = await loadExerciseCatalog(token);
+      await loadUserData(token, nextUser, migrateLegacyData, catalog);
+    } catch (error) {
+      setIsHydrating(false);
+      throw error;
+    } finally {
+      setIsHydrating(false);
+    }
+  };
+
+  const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Errore', 'Compila tutti i campi');
       return;
@@ -406,12 +584,19 @@ function MainApp() {
       Alert.alert('Errore', 'Formato email non valido');
       return;
     }
-    const loggedUser = { email };
-    setUser(loggedUser);
-    setCurrentScreen('home');
-  }, [email, password]);
 
-  const handleRegister = useCallback(() => {
+    setAuthLoading(true);
+    try {
+      const authResponse = await loginRequest(email, password);
+      await completeAuth(authResponse, true);
+    } catch (error) {
+      Alert.alert('Errore login', error.message || 'Login non riuscito');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleRegister = async () => {
     if (!email || !password) {
       Alert.alert('Errore', 'Compila tutti i campi');
       return;
@@ -424,33 +609,32 @@ function MainApp() {
       Alert.alert('Errore', 'Password deve essere di almeno 6 caratteri');
       return;
     }
-    const newUser = { email };
-    setUser(newUser);
-    setCurrentScreen('home');
-  }, [email, password]);
 
-  const handleLogout = useCallback(() => {
-    Alert.alert(
-      'Esci',
-      'Sei sicuro di voler uscire dal tuo account?',
-      [
-        { text: 'Annulla', style: 'cancel' },
-        {
-          text: 'Esci',
-          style: 'destructive',
-          onPress: () => {
-            setUser(null);
-            setCurrentScreen('login');
-            setEmail('');
-            setPassword('');
-          },
-        },
-      ]
-    );
-  }, []);
+    setAuthLoading(true);
+    try {
+      const authResponse = await registerRequest(email, password);
+      await completeAuth(authResponse, true);
+    } catch (error) {
+      Alert.alert('Errore registrazione', error.message || 'Registrazione non riuscita');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
-  const createWorkout = useCallback(() => {
-    // Create a new blank workout and open directly in the template editor
+  const handleLogout = async () => {
+    setUser(null);
+    setAuthToken(null);
+    setCurrentScreen('login');
+    setEmail('');
+    setPassword('');
+    setWorkouts([]);
+    setExercises(baseExercises);
+    setHistory([]);
+    setBadges([]);
+    await AsyncStorage.removeItem('authSession');
+  };
+
+  const createWorkout = () => {
     const newWorkout = {
       id: Date.now(),
       name: '',
@@ -459,7 +643,7 @@ function MainApp() {
       isNew: true,
     };
     openTemplateEditor(newWorkout);
-  }, [openTemplateEditor]);
+  };
 
   const deleteWorkout = useCallback((id) => {
     Alert.alert('Conferma', 'Vuoi eliminare questa scheda?', [
@@ -473,7 +657,7 @@ function MainApp() {
     ]);
   }, []);
 
-  const createCustomExercise = useCallback((override = null) => {
+  const createCustomExercise = async (override = null) => {
     const nextName = override?.name ?? customExerciseName;
     const nextMuscleGroup = override?.muscleGroup ?? customMuscleGroup;
     const nextType = override?.type ?? customExerciseType;
@@ -496,26 +680,54 @@ function MainApp() {
       return;
     }
 
-    const newExercise = {
-      id: Date.now(),
-      name: cleanedExName,
-      muscleGroup: nextMuscleGroup,
-      type: nextType || 'weight_reps',
-      description: nextDescription.trim() || '',
-      custom: true,
-    };
+    if (!authToken) {
+      Alert.alert('Errore', 'Effettua il login per creare un esercizio');
+      return;
+    }
 
-    setExercises((prev) => [...prev, newExercise]);
-    setCustomExerciseName('');
-    setCustomMuscleGroup('');
-    setCustomExerciseType('weight_reps');
-    setCustomExerciseDescription('');
-    setShowCustomExercise(false);
-  }, [customExerciseName, customMuscleGroup, customExerciseType, customExerciseDescription]);
+    try {
+      const savedExercise = await createCustomExerciseRequest(authToken, {
+        name: cleanedExName,
+        muscleGroup: nextMuscleGroup,
+        type: nextType || 'weight_reps',
+        description: nextDescription.trim() || '',
+      });
+      setExercises((prev) => [
+        ...prev,
+        {
+          ...savedExercise,
+          description: (savedExercise.description ?? nextDescription.trim()) || '',
+        },
+      ]);
+      setCustomExerciseName('');
+      setCustomMuscleGroup('');
+      setCustomExerciseType('weight_reps');
+      setCustomExerciseDescription('');
+      setShowCustomExercise(false);
+    } catch (error) {
+      Alert.alert(
+        'Errore esercizio',
+        error.message || 'Creazione esercizio non riuscita'
+      );
+    }
+  };
 
-  const deleteCustomExercise = useCallback((exerciseId) => {
-    setExercises((prev) => prev.filter((ex) => ex.id !== exerciseId));
-  }, []);
+  const deleteCustomExercise = async (exerciseId) => {
+    if (!authToken) {
+      Alert.alert('Errore', 'Effettua il login per eliminare un esercizio');
+      return;
+    }
+
+    try {
+      await deleteCustomExerciseRequest(authToken, exerciseId);
+      setExercises((prev) => prev.filter((ex) => ex.id !== exerciseId));
+    } catch (error) {
+      Alert.alert(
+        'Errore esercizio',
+        error.message || 'Eliminazione esercizio non riuscita'
+      );
+    }
+  };
 
   const startWorkout = useCallback((workout) => {
     const clonedExercises = workout.exercises.map((ex) => {
@@ -1385,18 +1597,30 @@ function MainApp() {
     setShowEditProfileModal(true);
   }, [profileName, profileAge, profileHeight, profileWeight, user]);
 
-  const saveProfile = useCallback(() => {
-    const updatedUser = {
-      ...(user || {}),
-      email: user?.email || email,
+  const saveProfile = useCallback(async () => {
+    const profile = {
       name: profileName.trim(),
       age: profileAge ? parseInt(profileAge, 10) : null,
       height: profileHeight ? parseInt(profileHeight, 10) : null,
       weight: profileWeight ? parseFloat(profileWeight) : null,
     };
-    setUser(updatedUser);
-    setShowEditProfileModal(false);
-  }, [user, email, profileName, profileAge, profileHeight, profileWeight]);
+
+    try {
+      const response = authToken
+        ? await updateProfile(authToken, profile)
+        : null;
+      const updatedUser = response?.user || {
+        ...(user || {}),
+        email: user?.email || email,
+        ...profile,
+      };
+      setUser(updatedUser);
+      if (authToken) await saveSession(authToken, updatedUser);
+      setShowEditProfileModal(false);
+    } catch (error) {
+      Alert.alert('Errore profilo', error.message || 'Salvataggio non riuscito');
+    }
+  }, [user, email, profileName, profileAge, profileHeight, profileWeight, authToken]);
 
   // Memoized grouped exercises — avoids re-iterating 200+ exercises on every render
   const groupExercisesByMuscle = useMemo(() => {
@@ -1419,6 +1643,7 @@ function MainApp() {
           setPassword={setPassword}
           handleLogin={handleLogin}
           handleRegister={handleRegister}
+          authLoading={authLoading}
         />
       )}
       {currentScreen === 'home' && (
