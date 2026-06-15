@@ -10,6 +10,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuthResponse, AuthUser, PublicUser } from './auth.types';
 
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_REQUIREMENTS_MESSAGE =
+  'La password deve contenere almeno 8 caratteri, una lettera minuscola, una lettera maiuscola, un numero e un simbolo';
 const ACCOUNT_ALREADY_EXISTS_ERROR = {
   code: 'ACCOUNT_ALREADY_EXISTS',
   message: 'Account già registrato, effettua il login',
@@ -43,7 +46,7 @@ export class AuthService {
     birthDate?: string | Date | null;
   }): Promise<AuthResponse> {
     const email = this.normalizeEmail(body.email);
-    const password = this.validatePassword(body.password);
+    const password = this.validateRegistrationPassword(body.password);
     const name = this.normalizeRequiredText(body.name, 'Nome');
     const surname = this.normalizeRequiredText(body.surname, 'Cognome');
     const birthDate = this.validateBirthDate(body.birthDate);
@@ -89,7 +92,7 @@ export class AuthService {
     password?: string;
   }): Promise<AuthResponse> {
     const email = this.normalizeEmail(body.email);
-    const password = this.validatePassword(body.password);
+    const password = this.normalizeLoginPassword(body.password);
 
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user || !this.verifyPassword(password, user.password)) {
@@ -219,16 +222,30 @@ export class AuthService {
 
   private normalizeEmail(email: string | undefined): string {
     const value = (email ?? '').trim().toLowerCase();
-    if (!value || !value.includes('@')) {
+    if (!EMAIL_PATTERN.test(value)) {
       throw new BadRequestException('Email non valida');
     }
     return value;
   }
 
-  private validatePassword(password: string | undefined): string {
+  private normalizeLoginPassword(password: string | undefined): string {
     const value = password ?? '';
-    if (value.length < 6) {
-      throw new BadRequestException('Password di almeno 6 caratteri');
+    if (!value) {
+      throw new BadRequestException('Password obbligatoria');
+    }
+    return value;
+  }
+
+  private validateRegistrationPassword(password: string | undefined): string {
+    const value = this.normalizeLoginPassword(password);
+    if (
+      value.length < 8 ||
+      !/[a-z]/.test(value) ||
+      !/[A-Z]/.test(value) ||
+      !/\d/.test(value) ||
+      !/[^A-Za-z0-9]/.test(value)
+    ) {
+      throw new BadRequestException(PASSWORD_REQUIREMENTS_MESSAGE);
     }
     return value;
   }

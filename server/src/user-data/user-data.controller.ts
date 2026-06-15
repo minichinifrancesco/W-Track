@@ -21,6 +21,7 @@ export class UserDataController {
       workouts?: unknown;
       exercises?: unknown;
       history?: unknown;
+      badges?: unknown;
     },
   ) {
     return this.userDataService.saveData(request.user, body);

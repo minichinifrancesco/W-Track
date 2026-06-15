@@ -6,6 +6,7 @@ describe('AuthService', () => {
   type CreateUserRequest = {
     data: {
       email: string;
+      password: string;
       name: string;
       surname: string;
       birthDate: Date;
@@ -55,7 +56,7 @@ describe('AuthService', () => {
   it('stores date-only birth dates without timezone shifts', async () => {
     const response = await service.register({
       email: ' Test@Example.com ',
-      password: 'secret1',
+      password: 'Secret1!',
       name: 'Mario',
       surname: 'Rossi',
       birthDate: '2000-06-15',
@@ -75,7 +76,7 @@ describe('AuthService', () => {
     await expect(
       service.register({
         email: 'test@example.com',
-        password: 'secret1',
+        password: 'Secret1!',
         name: 'Mario',
         surname: 'Rossi',
         birthDate: '2000-02-31',
@@ -89,7 +90,7 @@ describe('AuthService', () => {
     await expect(
       service.register({
         email: 'test@example.com',
-        password: 'secret1',
+        password: 'Secret1!',
         name: 'Mario',
         surname: 'Rossi',
         birthDate: '2000-06-15',
@@ -108,8 +109,28 @@ describe('AuthService', () => {
     await expect(
       service.register({
         email: 'test@example.com',
-        password: 'secret1',
+        password: 'Secret1!',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects weak passwords during registration', async () => {
+    await expect(
+      service.register({
+        email: 'test@example.com',
+        password: 'secret1',
+        name: 'Mario',
+        surname: 'Rossi',
+        birthDate: '2000-06-15',
+      }),
+    ).rejects.toMatchObject<Partial<BadRequestException>>({
+      response: {
+        error: 'Bad Request',
+        message:
+          'La password deve contenere almeno 8 caratteri, una lettera minuscola, una lettera maiuscola, un numero e un simbolo',
+        statusCode: 400,
+      },
+    });
+    expect(createUser).not.toHaveBeenCalled();
   });
 });

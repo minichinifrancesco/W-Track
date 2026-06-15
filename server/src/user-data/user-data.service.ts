@@ -6,6 +6,7 @@ type AppDataPayload = {
   workouts?: unknown;
   exercises?: unknown;
   history?: unknown;
+  badges?: unknown;
 };
 
 @Injectable()
@@ -20,6 +21,7 @@ export class UserDataService {
         workouts: '[]',
         exercises: '[]',
         history: '[]',
+        badges: '[]',
       },
       update: {},
     });
@@ -28,6 +30,7 @@ export class UserDataService {
       workouts: this.parseArray(data.workouts),
       exercises: this.parseArray(data.exercises),
       history: this.parseArray(data.history),
+      badges: this.parseArray(data.badges),
     };
   }
 
@@ -35,6 +38,7 @@ export class UserDataService {
     const workouts = this.stringifyArray(payload.workouts, 'workouts');
     const exercises = this.stringifyArray(payload.exercises, 'exercises');
     const history = this.stringifyArray(payload.history, 'history');
+    const badges = this.stringifyArray(payload.badges, 'badges');
 
     const data = await this.prisma.userAppData.upsert({
       where: { userId: authUser.userId },
@@ -43,11 +47,13 @@ export class UserDataService {
         workouts,
         exercises,
         history,
+        badges,
       },
       update: {
         workouts,
         exercises,
         history,
+        badges,
       },
     });
 
@@ -55,6 +61,7 @@ export class UserDataService {
       workouts: this.parseArray(data.workouts),
       exercises: this.parseArray(data.exercises),
       history: this.parseArray(data.history),
+      badges: this.parseArray(data.badges),
     };
   }
 

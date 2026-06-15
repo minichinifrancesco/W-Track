@@ -117,8 +117,16 @@ export default function LoginScreen({
             secureTextEntry
           />
 
-          <TouchableOpacity style={styles.primaryButton} onPress={handleLogin}>
-            <Text style={styles.primaryButtonText}>Accedi</Text>
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              authLoading ? { opacity: 0.65 } : null,
+            ]}
+            onPress={handleLogin}
+            disabled={authLoading}>
+            <Text style={styles.primaryButtonText}>
+              {authLoading ? 'Accesso...' : 'Accedi'}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity

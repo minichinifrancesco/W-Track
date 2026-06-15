@@ -1,10 +1,20 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { Alert, StatusBar, TouchableOpacity, View, Text } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  Alert,
+  Platform,
+  StatusBar,
+  TouchableOpacity,
+  View,
+  Text,
+} from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { getStyles } from './styles/styles';
-import { SettingsProvider, useEffectiveDark, useSettings } from './context/SettingsContext';
+import {
+  SettingsProvider,
+  useEffectiveDark,
+  useSettings,
+} from './context/SettingsContext';
 import { Ionicons } from '@expo/vector-icons';
 import {
   createCustomExercise as createCustomExerciseRequest,
@@ -47,6 +57,48 @@ import {
 
 const parseWorkoutNumber = (value) =>
   parseFloat(String(value || 0).replace(',', '.')) || 0;
+
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+const getPasswordValidationError = (value) => {
+  const passwordValue = value || '';
+  if (passwordValue.length < 8) {
+    return 'La password deve contenere almeno 8 caratteri.';
+  }
+
+  const missingRequirements = [];
+  if (!/[a-z]/.test(passwordValue)) {
+    missingRequirements.push('una lettera minuscola');
+  }
+  if (!/[A-Z]/.test(passwordValue)) {
+    missingRequirements.push('una lettera maiuscola');
+  }
+  if (!/\d/.test(passwordValue)) missingRequirements.push('un numero');
+  if (!/[^A-Za-z0-9]/.test(passwordValue)) {
+    missingRequirements.push('un simbolo');
+  }
+
+  if (missingRequirements.length > 0) {
+    return `La password deve contenere anche ${missingRequirements.join(', ')}.`;
+  }
+
+  return null;
+};
+
+const showAuthError = (title, message) => {
+  const safeMessage = message || 'Operazione non riuscita';
+
+  if (
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    typeof window.alert === 'function'
+  ) {
+    window.alert(`${title}\n\n${safeMessage}`);
+    return;
+  }
+
+  Alert.alert(title, safeMessage);
+};
 
 const formatProfileDate = (value) => {
   if (!value) return '';
@@ -283,24 +335,6 @@ function MainApp() {
 
   const saveDebounceTimer = useRef(null);
 
-  const getStorageUserId = (targetUser = user) =>
-    targetUser?.id ? String(targetUser.id) : targetUser?.email || 'guest';
-
-  const getUserStorageKey = (targetUser, key) =>
-    `user:${getStorageUserId(targetUser)}:${key}`;
-
-  const readJsonArray = async (key) => {
-    const value = await AsyncStorage.getItem(key);
-    if (!value) return null;
-
-    try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed : null;
-    } catch {
-      return null;
-    }
-  };
-
   const isCustomExercise = (exercise) =>
     exercise?.custom === true || exercise?.source === 'CUSTOM';
 
@@ -338,50 +372,12 @@ function MainApp() {
   };
 
   const bootstrapApp = async () => {
-    const catalog = await loadExerciseCatalog();
-    await loadStoredSession(catalog);
+    try {
+      await loadExerciseCatalog();
+    } finally {
+      setIsHydrating(false);
+    }
   };
-
-  const hasAnyAppData = (data) =>
-    (Array.isArray(data?.workouts) && data.workouts.length > 0) ||
-    getCustomExercises(data?.exercises).length > 0 ||
-    (Array.isArray(data?.history) && data.history.length > 0) ||
-    (Array.isArray(data?.badges) && data.badges.length > 0);
-
-  const saveLocalUserData = async (targetUser, data) => {
-    const customExercises = getCustomExercises(data.exercises);
-    await AsyncStorage.setItem(
-      getUserStorageKey(targetUser, 'workouts'),
-      JSON.stringify(data.workouts || [])
-    );
-    await AsyncStorage.setItem(
-      getUserStorageKey(targetUser, 'exercises'),
-      JSON.stringify(customExercises)
-    );
-    await AsyncStorage.setItem(
-      getUserStorageKey(targetUser, 'history'),
-      JSON.stringify(data.history || [])
-    );
-    await AsyncStorage.setItem(
-      getUserStorageKey(targetUser, 'badges'),
-      JSON.stringify(data.badges || [])
-    );
-  };
-
-  const loadLocalUserData = async (targetUser) => ({
-    workouts: (await readJsonArray(getUserStorageKey(targetUser, 'workouts'))) || [],
-    exercises:
-      (await readJsonArray(getUserStorageKey(targetUser, 'exercises'))) || [],
-    history: (await readJsonArray(getUserStorageKey(targetUser, 'history'))) || [],
-    badges: (await readJsonArray(getUserStorageKey(targetUser, 'badges'))) || [],
-  });
-
-  const loadLegacyData = async () => ({
-    workouts: (await readJsonArray('workouts')) || [],
-    exercises: (await readJsonArray('exercises')) || [],
-    history: (await readJsonArray('history')) || [],
-    badges: (await readJsonArray('badges')) || [],
-  });
 
   const applyUserProfile = (targetUser) => {
     setProfileName(targetUser?.name || '');
@@ -392,28 +388,13 @@ function MainApp() {
     setProfileWeight(targetUser?.weight ? String(targetUser.weight) : '');
   };
 
-  const saveSession = async (token, targetUser) => {
-    await AsyncStorage.setItem(
-      'authSession',
-      JSON.stringify({ token, user: targetUser })
-    );
-  };
-
   const saveData = useCallback(async () => {
-    const data = {
-      workouts,
-      exercises: getCustomExercises(exercises),
-      history,
-      badges,
-    };
-
     try {
-      await saveLocalUserData(user, data);
-      await saveSession(authToken, user);
       await saveUserData(authToken, {
         workouts,
         exercises: getCustomExercises(exercises),
         history,
+        badges,
       });
     } catch (error) {
       console.error('Errore salvataggio dati:', error.message || error);
@@ -433,43 +414,7 @@ function MainApp() {
     };
   }, [user, authToken, workouts, exercises, history, badges, isHydrating, saveData]);
 
-  const loadStoredSession = async (catalog = baseExercises) => {
-    try {
-      const sessionData = await AsyncStorage.getItem('authSession');
-      if (!sessionData) {
-        setExercises(catalog);
-        return;
-      }
-
-      const session = JSON.parse(sessionData);
-      if (!session?.token || !session?.user) return;
-
-      setIsHydrating(true);
-      setAuthToken(session.token);
-      setUser(session.user);
-      applyUserProfile(session.user);
-      setCurrentScreen('home');
-      const authenticatedCatalog = await loadExerciseCatalog(session.token);
-      await loadUserData(
-        session.token,
-        session.user,
-        true,
-        authenticatedCatalog.length > 0 ? authenticatedCatalog : catalog
-      );
-    } catch (error) {
-      console.error('Errore caricamento sessione:', error.message || error);
-      await AsyncStorage.removeItem('authSession');
-    } finally {
-      setIsHydrating(false);
-    }
-  };
-
-  const loadUserData = async (
-    token,
-    targetUser,
-    allowLegacyMigration = false,
-    catalog = baseExercises
-  ) => {
+  const loadUserData = async (token, catalog = baseExercises) => {
     let serverData = null;
     try {
       serverData = await getUserData(token);
@@ -477,42 +422,17 @@ function MainApp() {
       console.error('Errore caricamento dati server:', error.message || error);
     }
 
-    const localData = await loadLocalUserData(targetUser);
-    const legacyData = allowLegacyMigration ? await loadLegacyData() : null;
-    const selectedData =
-      (hasAnyAppData(serverData) && serverData) ||
-      (hasAnyAppData(localData) && localData) ||
-      (hasAnyAppData(legacyData) && legacyData) ||
-      {};
-
-    const selectedBadges =
-      (Array.isArray(localData.badges) && localData.badges.length > 0 && localData.badges) ||
-      (Array.isArray(legacyData?.badges) && legacyData.badges.length > 0 && legacyData.badges) ||
-      (Array.isArray(serverData?.badges) && serverData.badges) ||
-      [];
-
     const nextData = {
-      workouts: Array.isArray(selectedData.workouts) ? selectedData.workouts : [],
-      exercises: normalizeExercises(selectedData.exercises, catalog),
-      history: Array.isArray(selectedData.history) ? selectedData.history : [],
-      badges: selectedBadges,
+      workouts: Array.isArray(serverData?.workouts) ? serverData.workouts : [],
+      exercises: normalizeExercises(serverData?.exercises, catalog),
+      history: Array.isArray(serverData?.history) ? serverData.history : [],
+      badges: Array.isArray(serverData?.badges) ? serverData.badges : [],
     };
 
     setWorkouts(nextData.workouts);
     setExercises(nextData.exercises);
     setHistory(nextData.history);
     setBadges(nextData.badges);
-    await saveLocalUserData(targetUser, nextData);
-
-    try {
-      await saveUserData(token, {
-        workouts: nextData.workouts,
-        exercises: getCustomExercises(nextData.exercises),
-        history: nextData.history,
-      });
-    } catch (error) {
-      console.error('Errore sincronizzazione iniziale:', error.message || error);
-    }
   };
 
   const openExerciseDescription = useCallback((exercise) => {
@@ -578,17 +498,16 @@ function MainApp() {
     return Math.round(totalSeconds / 3600);
   }, [history]);
 
-  const completeAuth = async ({ token, user: nextUser }, migrateLegacyData) => {
+  const completeAuth = async ({ token, user: nextUser }) => {
     setIsHydrating(true);
     try {
       setAuthToken(token);
       setUser(nextUser);
       applyUserProfile(nextUser);
-      await saveSession(token, nextUser);
       setCurrentScreen('home');
       setPassword('');
       const catalog = await loadExerciseCatalog(token);
-      await loadUserData(token, nextUser, migrateLegacyData, catalog);
+      await loadUserData(token, catalog);
     } catch (error) {
       setIsHydrating(false);
       throw error;
@@ -598,21 +517,23 @@ function MainApp() {
   };
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Errore', 'Compila tutti i campi');
+    const loginEmail = email.trim();
+
+    if (!loginEmail || !password) {
+      showAuthError('Errore', 'Compila email e password');
       return;
     }
-    if (!email.includes('@')) {
-      Alert.alert('Errore', 'Formato email non valido');
+    if (!isValidEmail(loginEmail)) {
+      showAuthError('Errore', 'Formato email non valido');
       return;
     }
 
     setAuthLoading(true);
     try {
-      const authResponse = await loginRequest(email, password);
-      await completeAuth(authResponse, true);
+      const authResponse = await loginRequest(loginEmail, password);
+      await completeAuth(authResponse);
     } catch (error) {
-      Alert.alert('Errore login', error.message || 'Login non riuscito');
+      showAuthError('Errore login', error.message || 'Login non riuscito');
     } finally {
       setAuthLoading(false);
     }
@@ -632,15 +553,18 @@ function MainApp() {
       !registrationSurname ||
       !registrationBirthDate
     ) {
-      Alert.alert('Errore', 'Compila tutti i campi');
+      showAuthError('Errore', 'Compila tutti i campi');
       return false;
     }
-    if (!registrationEmail.includes('@')) {
-      Alert.alert('Errore', 'Formato email non valido');
+    if (!isValidEmail(registrationEmail)) {
+      showAuthError('Errore', 'Formato email non valido');
       return false;
     }
-    if (registrationPassword.length < 6) {
-      Alert.alert('Errore', 'Password deve essere di almeno 6 caratteri');
+
+    const passwordValidationError =
+      getPasswordValidationError(registrationPassword);
+    if (passwordValidationError) {
+      showAuthError('Password non valida', passwordValidationError);
       return false;
     }
 
@@ -654,13 +578,13 @@ function MainApp() {
         birthDate: registrationBirthDate,
       });
       setEmail(registrationEmail);
-      await completeAuth(authResponse, true);
+      await completeAuth(authResponse);
       return true;
     } catch (error) {
       if (error.code === 'ACCOUNT_ALREADY_EXISTS' || error.status === 409) {
-        Alert.alert('Errore', 'Account già registrato, effettua il login');
+        showAuthError('Errore', 'Account già registrato, effettua il login');
       } else {
-        Alert.alert(
+        showAuthError(
           'Errore registrazione',
           error.message || 'Registrazione non riuscita'
         );
@@ -687,7 +611,6 @@ function MainApp() {
     setExercises(baseExercises);
     setHistory([]);
     setBadges([]);
-    await AsyncStorage.removeItem('authSession');
   };
 
   const createWorkout = () => {
@@ -1671,7 +1594,6 @@ function MainApp() {
         ...profile,
       };
       setUser(updatedUser);
-      if (authToken) await saveSession(authToken, updatedUser);
       setShowEditProfileModal(false);
     } catch (error) {
       Alert.alert('Errore profilo', error.message || 'Salvataggio non riuscito');
