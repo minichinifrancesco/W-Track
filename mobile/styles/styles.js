@@ -891,11 +891,14 @@ export const getStyles = (isDark) => {
     },
     profileInfoRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       justifyContent: 'space-between',
     },
     profileInfoItem: {
       alignItems: 'center',
       flex: 1,
+      minWidth: 72,
+      marginBottom: 8,
     },
     profileInfoLabel: {
       fontSize: 12,

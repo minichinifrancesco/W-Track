@@ -48,6 +48,24 @@ import {
 const parseWorkoutNumber = (value) =>
   parseFloat(String(value || 0).replace(',', '.')) || 0;
 
+const formatProfileDate = (value) => {
+  if (!value) return '';
+
+  const dateOnlyMatch = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    return `${day}/${month}/${year}`;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('it-IT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+};
+
 // Extracted as React.memo so only this component re-renders every second
 // (when workoutSeconds changes), not the entire MainApp tree.
 const FloatingWorkoutBar = React.memo(function FloatingWorkoutBar({
@@ -172,6 +190,8 @@ function MainApp() {
   const [customExerciseDescription, setCustomExerciseDescription] = useState('');
 
   const [profileName, setProfileName] = useState('');
+  const [profileSurname, setProfileSurname] = useState('');
+  const [profileBirthDate, setProfileBirthDate] = useState('');
   const [profileAge, setProfileAge] = useState('');
   const [profileHeight, setProfileHeight] = useState('');
   const [profileWeight, setProfileWeight] = useState('');
@@ -365,6 +385,8 @@ function MainApp() {
 
   const applyUserProfile = (targetUser) => {
     setProfileName(targetUser?.name || '');
+    setProfileSurname(targetUser?.surname || '');
+    setProfileBirthDate(formatProfileDate(targetUser?.birthDate));
     setProfileAge(targetUser?.age ? String(targetUser.age) : '');
     setProfileHeight(targetUser?.height ? String(targetUser.height) : '');
     setProfileWeight(targetUser?.weight ? String(targetUser.weight) : '');
@@ -596,26 +618,54 @@ function MainApp() {
     }
   };
 
-  const handleRegister = async () => {
-    if (!email || !password) {
+  const handleRegister = async (registrationData) => {
+    const registrationEmail = (registrationData?.email || '').trim();
+    const registrationPassword = registrationData?.password || '';
+    const registrationName = (registrationData?.name || '').trim();
+    const registrationSurname = (registrationData?.surname || '').trim();
+    const registrationBirthDate = registrationData?.birthDate;
+
+    if (
+      !registrationEmail ||
+      !registrationPassword ||
+      !registrationName ||
+      !registrationSurname ||
+      !registrationBirthDate
+    ) {
       Alert.alert('Errore', 'Compila tutti i campi');
-      return;
+      return false;
     }
-    if (!email.includes('@')) {
+    if (!registrationEmail.includes('@')) {
       Alert.alert('Errore', 'Formato email non valido');
-      return;
+      return false;
     }
-    if (password.length < 6) {
+    if (registrationPassword.length < 6) {
       Alert.alert('Errore', 'Password deve essere di almeno 6 caratteri');
-      return;
+      return false;
     }
 
     setAuthLoading(true);
     try {
-      const authResponse = await registerRequest(email, password);
+      const authResponse = await registerRequest({
+        email: registrationEmail,
+        password: registrationPassword,
+        name: registrationName,
+        surname: registrationSurname,
+        birthDate: registrationBirthDate,
+      });
+      setEmail(registrationEmail);
       await completeAuth(authResponse, true);
+      return true;
     } catch (error) {
-      Alert.alert('Errore registrazione', error.message || 'Registrazione non riuscita');
+      if (error.code === 'ACCOUNT_ALREADY_EXISTS' || error.status === 409) {
+        Alert.alert('Errore', 'Account già registrato, effettua il login');
+      } else {
+        Alert.alert(
+          'Errore registrazione',
+          error.message || 'Registrazione non riuscita'
+        );
+      }
+      return false;
     } finally {
       setAuthLoading(false);
     }
@@ -627,6 +677,12 @@ function MainApp() {
     setCurrentScreen('login');
     setEmail('');
     setPassword('');
+    setProfileName('');
+    setProfileSurname('');
+    setProfileBirthDate('');
+    setProfileAge('');
+    setProfileHeight('');
+    setProfileWeight('');
     setWorkouts([]);
     setExercises(baseExercises);
     setHistory([]);
@@ -1028,10 +1084,6 @@ function MainApp() {
     performToggle();
   }, [activeWorkout, history, startRestTimer]);
 
-  const updateSetDetail = useCallback((exerciseId, setIndex, field, value) => {
-    applySetUpdate(exerciseId, setIndex, field, value);
-  }, [applySetUpdate]);
-
   const applySetUpdate = useCallback((exerciseId, setIndex, field, parsedValue) => {
     setActiveWorkout((prev) => {
       if (!prev) return prev;
@@ -1091,6 +1143,10 @@ function MainApp() {
       };
     });
   }, [history]);
+
+  const updateSetDetail = useCallback((exerciseId, setIndex, field, value) => {
+    applySetUpdate(exerciseId, setIndex, field, value);
+  }, [applySetUpdate]);
 
   const deleteSetFromExercise = useCallback((exerciseId, setIndex) => {
     if (!activeWorkout) return;
@@ -1743,6 +1799,8 @@ function MainApp() {
         <ProfileScreen
           user={user}
           profileName={profileName}
+          profileSurname={profileSurname}
+          profileBirthDate={profileBirthDate}
           profileAge={profileAge}
           profileHeight={profileHeight}
           profileWeight={profileWeight}

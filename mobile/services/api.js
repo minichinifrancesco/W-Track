@@ -92,7 +92,10 @@ async function request(path, options = {}) {
 
   if (!response.ok) {
     const message = data?.message || 'Errore di comunicazione con il server';
-    throw new Error(Array.isArray(message) ? message.join(', ') : message);
+    const error = new Error(Array.isArray(message) ? message.join(', ') : message);
+    error.status = response.status;
+    error.code = data?.code;
+    throw error;
   }
 
   return data;
@@ -105,10 +108,10 @@ export function login(email, password) {
   });
 }
 
-export function register(email, password) {
+export function register(profile) {
   return request('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify(profile),
   });
 }
 

@@ -8,7 +8,16 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('auth/register')
-  register(@Body() body: { email?: string; password?: string; name?: string }) {
+  register(
+    @Body()
+    body: {
+      email?: string;
+      password?: string;
+      name?: string;
+      surname?: string;
+      birthDate?: string | Date | null;
+    },
+  ) {
     return this.authService.register(body);
   }
 
@@ -24,6 +33,8 @@ export class AuthController {
     @Body()
     body: {
       name?: string;
+      surname?: string | null;
+      birthDate?: string | Date | null;
       age?: number | string | null;
       height?: number | string | null;
       weight?: number | string | null;

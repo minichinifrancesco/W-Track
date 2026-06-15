@@ -67,7 +67,7 @@ export class UserDataService {
 
   private parseArray(value: string): unknown[] {
     try {
-      const parsed = JSON.parse(value);
+      const parsed: unknown = JSON.parse(value);
       return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];

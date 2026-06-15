@@ -12,6 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 export default function ProfileScreen({
   user,
   profileName,
+  profileSurname,
+  profileBirthDate,
   profileAge,
   profileHeight,
   profileWeight,
@@ -37,6 +39,12 @@ export default function ProfileScreen({
   const handleCloseBadges = useCallback(() => setShowBadges(false), []);
   const handleOpenBadges = useCallback(() => setShowBadges(true), []);
   const handleOpenSettings = useCallback(() => setShowSettings(true), []);
+  const profileFullName =
+    [profileName, profileSurname].filter(Boolean).join(' ') ||
+    'Nome non impostato';
+  const profileInitial = (profileName || profileSurname || user?.email || 'U')
+    .charAt(0)
+    .toUpperCase();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -89,15 +97,11 @@ export default function ProfileScreen({
         <View style={styles.profileCard}>
           <View style={styles.profileTopRow}>
             <View style={styles.profileAvatar}>
-              <Text style={styles.profileAvatarText}>
-                {(profileName || user?.email || 'U').charAt(0).toUpperCase()}
-              </Text>
+              <Text style={styles.profileAvatarText}>{profileInitial}</Text>
             </View>
 
             <View style={{ flex: 1 }}>
-              <Text style={styles.profileName}>
-                {profileName || 'Nome non impostato'}
-              </Text>
+              <Text style={styles.profileName}>{profileFullName}</Text>
               <Text style={styles.profileEmail}>{user?.email}</Text>
             </View>
 
@@ -109,6 +113,13 @@ export default function ProfileScreen({
           </View>
 
           <View style={styles.profileInfoRow}>
+            <View style={styles.profileInfoItem}>
+              <Text style={styles.profileInfoLabel}>Nascita</Text>
+              <Text style={styles.profileInfoValue}>
+                {profileBirthDate || '-'}
+              </Text>
+            </View>
+
             <View style={styles.profileInfoItem}>
               <Text style={styles.profileInfoLabel}>Età</Text>
               <Text style={styles.profileInfoValue}>{profileAge || '-'}</Text>
