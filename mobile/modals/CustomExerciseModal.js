@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
-  InputAccessoryView,
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -20,8 +20,15 @@ const EXERCISE_TYPES = [
   { key: 'reps',        label: 'Ripetizioni' },
   { key: 'timed',       label: 'A Tempo'     },
 ];
-const keyboardAccessoryId = 'custom-exercise-keyboard-accessory';
-
+const EQUIPMENT_TYPES = [
+  'Macchinari',
+  'Corpo libero',
+  'Pesi liberi',
+  'Con pesi',
+  'Cavi',
+  'Cardio machine',
+  'Altro',
+];
 export default function CustomExerciseModal({
   showCustomExercise,
   setShowCustomExercise,
@@ -42,6 +49,7 @@ export default function CustomExerciseModal({
   const muscleGroups = getAvailableMuscleGroups(exercises);
   const [localName, setLocalName] = useState(customExerciseName || '');
   const [localMuscleGroup, setLocalMuscleGroup] = useState(customMuscleGroup || '');
+  const [localEquipmentType, setLocalEquipmentType] = useState('Altro');
   const [localType, setLocalType] = useState(customExerciseType || 'weight_reps');
   const [localDescription, setLocalDescription] = useState(customExerciseDescription || '');
 
@@ -49,6 +57,7 @@ export default function CustomExerciseModal({
     if (!showCustomExercise) return;
     setLocalName(customExerciseName || '');
     setLocalMuscleGroup(customMuscleGroup || '');
+    setLocalEquipmentType('Altro');
     setLocalType(customExerciseType || 'weight_reps');
     setLocalDescription(customExerciseDescription || '');
   }, [customExerciseDescription, customExerciseName, customExerciseType, customMuscleGroup, showCustomExercise]);
@@ -67,6 +76,7 @@ export default function CustomExerciseModal({
     createCustomExercise({
       name: localName,
       muscleGroup: localMuscleGroup,
+      equipmentType: localEquipmentType,
       type: localType,
       description: localDescription,
     });
@@ -74,15 +84,20 @@ export default function CustomExerciseModal({
 
   return (
     <Modal visible={showCustomExercise} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.modalOverlay}>
         <View style={styles.modalContentLarge}>
           <Text style={styles.modalTitle}>Nuovo Esercizio</Text>
 
           <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <ScrollView
             showsVerticalScrollIndicator={false}
+            automaticallyAdjustKeyboardInsets
+            contentContainerStyle={{ paddingBottom: 16 }}
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-            keyboardShouldPersistTaps="handled">
+            keyboardShouldPersistTaps="handled"
+            onScrollBeginDrag={Keyboard.dismiss}>
             {/* Nome */}
             <TextInput
               style={styles.input}
@@ -90,7 +105,6 @@ export default function CustomExerciseModal({
               placeholderTextColor={C.textMuted}
               value={localName}
               onChangeText={setLocalName}
-              inputAccessoryViewID={keyboardAccessoryId}
               returnKeyType="done"
               onSubmitEditing={Keyboard.dismiss}
             />
@@ -105,7 +119,10 @@ export default function CustomExerciseModal({
                 return (
                   <TouchableOpacity
                     key={t.key}
-                    onPress={() => setLocalType(t.key)}
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      setLocalType(t.key);
+                    }}
                     style={{
                       flex: 1,
                       borderRadius: 10,
@@ -136,7 +153,10 @@ export default function CustomExerciseModal({
                     styles.groupChip,
                     localMuscleGroup === group && styles.groupChipSelected,
                   ]}
-                  onPress={() => setLocalMuscleGroup(group)}>
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setLocalMuscleGroup(group);
+                  }}>
                   <Text
                     style={
                       localMuscleGroup === group
@@ -144,6 +164,34 @@ export default function CustomExerciseModal({
                         : styles.groupChipText
                     }>
                     {group}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Tipo attrezzatura */}
+            <Text style={[styles.sectionLabel, { marginBottom: 8, marginTop: 14, fontWeight: '700', color: C.textDark }]}>
+              Tipo attrezzatura
+            </Text>
+            <View style={styles.muscleGroupSelectorRow}>
+              {EQUIPMENT_TYPES.map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  style={[
+                    styles.groupChip,
+                    localEquipmentType === type && styles.groupChipSelected,
+                  ]}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setLocalEquipmentType(type);
+                  }}>
+                  <Text
+                    style={
+                      localEquipmentType === type
+                        ? styles.groupChipTextSelected
+                        : styles.groupChipText
+                    }>
+                    {type}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -171,34 +219,14 @@ export default function CustomExerciseModal({
               placeholderTextColor={C.textMuted}
               value={localDescription}
               onChangeText={setLocalDescription}
-              inputAccessoryViewID={keyboardAccessoryId}
               returnKeyType="done"
               onSubmitEditing={Keyboard.dismiss}
+              blurOnSubmit
               multiline
               numberOfLines={4}
             />
           </ScrollView>
           </TouchableWithoutFeedback>
-
-          {Platform.OS === 'ios' && (
-            <InputAccessoryView nativeID={keyboardAccessoryId}>
-              <View
-                style={{
-                  alignItems: 'flex-end',
-                  backgroundColor: isDarkMode ? '#1e293b' : '#f8fafc',
-                  borderTopColor: isDarkMode ? '#334155' : '#cbd5e1',
-                  borderTopWidth: 1,
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                }}>
-                <TouchableOpacity onPress={Keyboard.dismiss}>
-                  <Text style={{ color: '#86B749', fontSize: 16, fontWeight: '800' }}>
-                    Fine
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </InputAccessoryView>
-          )}
 
           <View style={[styles.modalButtons, { marginTop: 12 }]}>
             <TouchableOpacity
@@ -214,7 +242,7 @@ export default function CustomExerciseModal({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

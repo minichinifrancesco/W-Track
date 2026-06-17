@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   FlatList,
+  Keyboard,
 } from 'react-native';
 import { useEffectiveDark } from '../context/SettingsContext';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -21,7 +22,15 @@ const MUSCLE_OPTIONS = [
   'Bicipiti', 'Tricipiti', 'Addome e core', 'Polpacci',
   'Glutei specifici', 'Full body',
 ];
-const CATEGORY_OPTIONS = ['Macchinari', 'Corpo libero', 'Pesi'];
+const EQUIPMENT_OPTIONS = [
+  'Macchinari',
+  'Corpo libero',
+  'Pesi liberi',
+  'Con pesi',
+  'Cavi',
+  'Cardio machine',
+  'Altro',
+];
 
 // Memoized list row component for exercises
 const ExerciseRow = React.memo(function ExerciseRow({
@@ -78,11 +87,11 @@ export default function ExercisesScreen({
 
   const [search, setSearch] = useState('');
   const [selectedMuscle, setSelectedMuscle] = useState(null);
-  const [selectedStyle, setSelectedStyle] = useState(null);
+  const [selectedEquipment, setSelectedEquipment] = useState(null);
 
   // closeSignal: ogni volta che incrementa, il FilterDropdown corrispondente si chiude
   const [closeMuscleSignal, setCloseMuscleSignal] = useState(0);
-  const [closeCategorySignal, setCloseCategorySignal] = useState(0);
+  const [closeEquipmentSignal, setCloseEquipmentSignal] = useState(0);
 
   const filteredExercises = useMemo(() => {
     return exercises.filter((ex) => {
@@ -91,18 +100,12 @@ export default function ExercisesScreen({
         if (!ex.name.toLowerCase().includes(query)) return false;
       }
       if (selectedMuscle && ex.muscleGroup !== selectedMuscle) return false;
-      if (selectedStyle) {
-        if (selectedStyle === 'Macchinari' && ex.subcategory !== 'Macchinari') return false;
-        if (selectedStyle === 'Corpo libero' && ex.subcategory !== 'Corpo libero') return false;
-        if (
-          selectedStyle === 'Pesi' &&
-          ex.subcategory !== 'Pesi liberi' &&
-          ex.subcategory !== 'Con pesi'
-        ) return false;
+      if (selectedEquipment && (ex.equipmentType || 'Altro') !== selectedEquipment) {
+        return false;
       }
       return true;
     });
-  }, [exercises, search, selectedMuscle, selectedStyle]);
+  }, [exercises, search, selectedMuscle, selectedEquipment]);
 
   // Flatten grouped results for FlatList
   const flatData = useMemo(() => {
@@ -123,18 +126,22 @@ export default function ExercisesScreen({
   }, [filteredExercises]);
 
   const handleOpenDescription = useCallback((ex) => {
+    Keyboard.dismiss();
     openExerciseDescription(ex);
   }, [openExerciseDescription]);
 
   const handleDeleteCustom = useCallback((exId) => {
+    Keyboard.dismiss();
     deleteCustomExercise(exId);
   }, [deleteCustomExercise]);
 
   const handleMuscleOpen = useCallback(() => {
-    setCloseCategorySignal((n) => n + 1);
+    Keyboard.dismiss();
+    setCloseEquipmentSignal((n) => n + 1);
   }, []);
 
-  const handleCategoryOpen = useCallback(() => {
+  const handleEquipmentOpen = useCallback(() => {
+    Keyboard.dismiss();
     setCloseMuscleSignal((n) => n + 1);
   }, []);
 
@@ -172,9 +179,10 @@ export default function ExercisesScreen({
           value={search}
           onChangeText={setSearch}
           placeholderTextColor="#94a3b8"
+          returnKeyType="done"
+          onSubmitEditing={Keyboard.dismiss}
         />
 
-        {/* Due bottoni filtro affiancati */}
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <View style={{ flex: 1 }}>
             <FilterDropdown
@@ -188,18 +196,18 @@ export default function ExercisesScreen({
           </View>
           <View style={{ flex: 1 }}>
             <FilterDropdown
-              label="Categoria"
-              options={CATEGORY_OPTIONS}
-              selected={selectedStyle}
-              onSelect={setSelectedStyle}
-              closeSignal={closeCategorySignal}
-              onOpen={handleCategoryOpen}
+              label="Tipo attrezzatura"
+              options={EQUIPMENT_OPTIONS}
+              selected={selectedEquipment}
+              onSelect={setSelectedEquipment}
+              closeSignal={closeEquipmentSignal}
+              onOpen={handleEquipmentOpen}
             />
           </View>
         </View>
       </View>
     );
-  }, [isDarkMode, styles, search, selectedMuscle, selectedStyle, closeMuscleSignal, closeCategorySignal, handleMuscleOpen, handleCategoryOpen]);
+  }, [isDarkMode, styles, search, selectedMuscle, selectedEquipment, closeMuscleSignal, closeEquipmentSignal, handleMuscleOpen, handleEquipmentOpen]);
 
   const keyExtractor = useCallback((item) => String(item.id), []);
 
@@ -220,7 +228,10 @@ export default function ExercisesScreen({
       {/* ── Bottone nuovo esercizio ── */}
       <TouchableOpacity
         style={styles.addExerciseButton}
-        onPress={() => setShowCustomExercise(true)}>
+        onPress={() => {
+          Keyboard.dismiss();
+          setShowCustomExercise(true);
+        }}>
         <Text style={styles.primaryButtonText}>+ Nuovo esercizio</Text>
       </TouchableOpacity>
 
@@ -234,7 +245,9 @@ export default function ExercisesScreen({
         initialNumToRender={15}
         maxToRenderPerBatch={10}
         windowSize={5}
-        keyboardShouldPersistTaps="always"
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={Keyboard.dismiss}
       />
 
       <BottomNav currentScreen={currentScreen} setCurrentScreen={setCurrentScreen} />

@@ -26,4 +26,25 @@ export class UserDataController {
   ) {
     return this.userDataService.saveData(request.user, body);
   }
+
+  @Get('settings')
+  getSettings(@Req() request: AuthenticatedRequest) {
+    return this.userDataService.getSettings(request.user);
+  }
+
+  @Put('settings')
+  saveSettings(
+    @Req() request: AuthenticatedRequest,
+    @Body()
+    body: {
+      weightUnit?: unknown;
+      themeMode?: unknown;
+      defaultRestTime?: unknown;
+      showExerciseNotes?: unknown;
+      restTimerHaptic?: unknown;
+      restTimerSound?: unknown;
+    },
+  ) {
+    return this.userDataService.saveSettings(request.user, body);
+  }
 }

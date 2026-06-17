@@ -135,7 +135,7 @@ export default function HomeScreen({
                     marginLeft: 10,
                   }}
                   onPress={() => deleteWorkout(workout.id)}>
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Elimina</Text>
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Archivia</Text>
                 </TouchableOpacity>
               )}>
               <View style={[styles.workoutCard, { marginBottom: 0 }]}>

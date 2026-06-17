@@ -152,6 +152,60 @@ export function saveUserData(token, data) {
   });
 }
 
+export function createWorkoutPlan(token, workoutPlan) {
+  return request('/workout-plans', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(workoutPlan),
+  });
+}
+
+export function updateWorkoutPlan(token, workoutPlanId, workoutPlan) {
+  return request(`/workout-plans/${workoutPlanId}`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify(workoutPlan),
+  });
+}
+
+export function archiveWorkoutPlan(token, workoutPlanId) {
+  return request(`/workout-plans/${workoutPlanId}/archive`, {
+    method: 'PATCH',
+    token,
+  });
+}
+
+export function createWorkoutRecord(token, workout) {
+  return request('/workouts', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(workout),
+  });
+}
+
+export function updateWorkoutNotes(token, workoutId, generalNote) {
+  return request(`/workouts/${workoutId}/notes`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({ generalNote }),
+  });
+}
+
+export function getUserSettings(token) {
+  return request('/me/data/settings', {
+    method: 'GET',
+    token,
+  });
+}
+
+export function saveUserSettings(token, settings) {
+  return request('/me/data/settings', {
+    method: 'PUT',
+    token,
+    body: JSON.stringify(settings),
+  });
+}
+
 export function updateProfile(token, profile) {
   return request('/me/profile', {
     method: 'PATCH',

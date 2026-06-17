@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useRef, useState } from 'react';
 import { useColorScheme } from 'react-native';
-
-const STORAGE_KEY = 'app_settings';
+import {
+  getUserSettings,
+  saveUserSettings,
+} from '../services/api';
 
 const DEFAULT_SETTINGS = {
   weightUnit: 'kg',      // 'kg' | 'lbs'
@@ -16,28 +17,49 @@ const DEFAULT_SETTINGS = {
 export const SettingsContext = createContext({
   settings: DEFAULT_SETTINGS,
   updateSetting: () => {},
+  loadSettings: async () => {},
+  clearSettings: () => {},
   convertWeight: (v) => v,
   formatWeight: (v) => `${v} kg`,
 });
 
 export function SettingsProvider({ children }) {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const authTokenRef = useRef(null);
 
-  useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw);
-          setSettings((prev) => ({ ...prev, ...parsed }));
-        } catch (_) {}
-      }
-    });
-  }, []);
+  const loadSettings = async (token) => {
+    authTokenRef.current = token || null;
+    if (!token) {
+      setSettings(DEFAULT_SETTINGS);
+      return DEFAULT_SETTINGS;
+    }
+
+    const serverSettings = await getUserSettings(token);
+    const nextSettings = { ...DEFAULT_SETTINGS, ...serverSettings };
+    setSettings(nextSettings);
+    return nextSettings;
+  };
+
+  const clearSettings = () => {
+    authTokenRef.current = null;
+    setSettings(DEFAULT_SETTINGS);
+  };
 
   const updateSetting = (key, value) => {
     setSettings((prev) => {
       const next = { ...prev, [key]: value };
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      if (authTokenRef.current) {
+        saveUserSettings(authTokenRef.current, next)
+          .then((serverSettings) => {
+            setSettings((current) => ({
+              ...current,
+              ...serverSettings,
+            }));
+          })
+          .catch((error) => {
+            console.error('Errore salvataggio impostazioni:', error.message || error);
+          });
+      }
       return next;
     });
   };
@@ -64,7 +86,16 @@ export function SettingsProvider({ children }) {
   };
 
   return (
-    <SettingsContext.Provider value={{ settings, updateSetting, convertWeight, toKg, formatWeight }}>
+    <SettingsContext.Provider
+      value={{
+        settings,
+        updateSetting,
+        loadSettings,
+        clearSettings,
+        convertWeight,
+        toKg,
+        formatWeight,
+      }}>
       {children}
     </SettingsContext.Provider>
   );

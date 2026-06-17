@@ -10,6 +10,8 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useEffectiveDark } from '../context/SettingsContext';
@@ -64,11 +66,13 @@ export default function LoginScreen({
   }, [showRegisterModal, email, password]);
 
   const closeRegisterModal = () => {
+    Keyboard.dismiss();
     setShowRegisterModal(false);
     setShowBirthDatePicker(false);
   };
 
   const submitRegister = async () => {
+    Keyboard.dismiss();
     const didRegister = await handleRegister({
       email: registerEmail,
       password: registerPassword,
@@ -94,134 +98,164 @@ export default function LoginScreen({
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.authContainer}>
-        <Image source={logoFull} style={styles.logoFull} />
-        <Text style={styles.tagline}>TRACK. PROGRESS. REPEAT.</Text>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.authContainer}>
+          <Image source={logoFull} style={styles.logoFull} />
+          <Text style={styles.tagline}>TRACK. PROGRESS. REPEAT.</Text>
 
-        <View style={styles.authCard}>
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor={C.textMuted}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor={C.textMuted}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          <View style={styles.authCard}>
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor={C.textMuted}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor={C.textMuted}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
+            />
 
-          <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              authLoading ? { opacity: 0.65 } : null,
-            ]}
-            onPress={handleLogin}
-            disabled={authLoading}>
-            <Text style={styles.primaryButtonText}>
-              {authLoading ? 'Accesso...' : 'Accedi'}
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.primaryButton,
+                authLoading ? { opacity: 0.65 } : null,
+              ]}
+              onPress={() => {
+                Keyboard.dismiss();
+                handleLogin();
+              }}
+              disabled={authLoading}>
+              <Text style={styles.primaryButtonText}>
+                {authLoading ? 'Accesso...' : 'Accedi'}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={() => setShowRegisterModal(true)}>
-            <Text style={styles.secondaryButtonText}>Registrati</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => {
+                Keyboard.dismiss();
+                setShowRegisterModal(true);
+              }}>
+              <Text style={styles.secondaryButtonText}>Registrati</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
 
       <Modal visible={showRegisterModal} animationType="slide" transparent>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalOverlay}>
-          <View style={styles.modalContentLarge}>
-            <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.modalTitle}>Crea account</Text>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View style={styles.modalContentLarge}>
+              <ScrollView
+                keyboardDismissMode="on-drag"
+                keyboardShouldPersistTaps="handled"
+                onScrollBeginDrag={Keyboard.dismiss}>
+                <Text style={styles.modalTitle}>Crea account</Text>
 
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                placeholderTextColor={C.textMuted}
-                value={registerEmail}
-                onChangeText={setRegisterEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor={C.textMuted}
-                value={registerPassword}
-                onChangeText={setRegisterPassword}
-                secureTextEntry
-              />
-
-              <TextInput
-                style={styles.input}
-                placeholder="Nome"
-                placeholderTextColor={C.textMuted}
-                value={registerName}
-                onChangeText={setRegisterName}
-              />
-
-              <TextInput
-                style={styles.input}
-                placeholder="Cognome"
-                placeholderTextColor={C.textMuted}
-                value={registerSurname}
-                onChangeText={setRegisterSurname}
-              />
-
-              <TouchableOpacity
-                style={[styles.input, { justifyContent: 'center' }]}
-                onPress={() => setShowBirthDatePicker(true)}
-                activeOpacity={0.8}>
-                <Text style={{ color: C.textDark, fontSize: 15 }}>
-                  Data di nascita: {formatDateForDisplay(registerBirthDate)}
-                </Text>
-              </TouchableOpacity>
-
-              {(showBirthDatePicker || Platform.OS === 'ios') && (
-                <DateTimePicker
-                  value={registerBirthDate}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  maximumDate={new Date()}
-                  onChange={onBirthDateChange}
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email"
+                  placeholderTextColor={C.textMuted}
+                  value={registerEmail}
+                  onChangeText={setRegisterEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
                 />
-              )}
 
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[styles.secondaryButton, styles.modalButtonFlex]}
-                  onPress={closeRegisterModal}
-                  disabled={authLoading}>
-                  <Text style={styles.secondaryButtonText}>Annulla</Text>
-                </TouchableOpacity>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Password"
+                  placeholderTextColor={C.textMuted}
+                  value={registerPassword}
+                  onChangeText={setRegisterPassword}
+                  secureTextEntry
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                />
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Nome"
+                  placeholderTextColor={C.textMuted}
+                  value={registerName}
+                  onChangeText={setRegisterName}
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                />
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Cognome"
+                  placeholderTextColor={C.textMuted}
+                  value={registerSurname}
+                  onChangeText={setRegisterSurname}
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                />
 
                 <TouchableOpacity
-                  style={[
-                    styles.primaryButton,
-                    styles.modalButtonFlex,
-                    authLoading ? { opacity: 0.65 } : null,
-                  ]}
-                  onPress={submitRegister}
-                  disabled={authLoading}>
-                  <Text style={styles.primaryButtonText}>
-                    {authLoading ? 'Registrazione...' : 'Crea account'}
+                  style={[styles.input, { justifyContent: 'center' }]}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setShowBirthDatePicker(true);
+                  }}
+                  activeOpacity={0.8}>
+                  <Text style={{ color: C.textDark, fontSize: 15 }}>
+                    Data di nascita: {formatDateForDisplay(registerBirthDate)}
                   </Text>
                 </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </View>
+
+                {(showBirthDatePicker || Platform.OS === 'ios') && (
+                  <DateTimePicker
+                    value={registerBirthDate}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    maximumDate={new Date()}
+                    onChange={onBirthDateChange}
+                  />
+                )}
+
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity
+                    style={[styles.secondaryButton, styles.modalButtonFlex]}
+                    onPress={closeRegisterModal}
+                    disabled={authLoading}>
+                    <Text style={styles.secondaryButtonText}>Annulla</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.primaryButton,
+                      styles.modalButtonFlex,
+                      authLoading ? { opacity: 0.65 } : null,
+                    ]}
+                    onPress={submitRegister}
+                    disabled={authLoading}>
+                    <Text style={styles.primaryButtonText}>
+                      {authLoading ? 'Registrazione...' : 'Crea account'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </View>
+          </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>

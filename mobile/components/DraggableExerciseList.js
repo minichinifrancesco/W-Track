@@ -253,6 +253,7 @@ export default function DraggableExerciseList({
       ref={scrollViewRef}
       style={[{ flex: 1 }, style]}
       scrollEnabled={scrollEnabled}
+      automaticallyAdjustKeyboardInsets
       onScroll={(e) => {
         scrollOffset.current = e.nativeEvent.contentOffset.y;
       }}

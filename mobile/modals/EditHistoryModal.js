@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  View,
+  Text,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+} from 'react-native';
 import { useEffectiveDark } from '../context/SettingsContext';
 import { getStyles } from '../styles/styles';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,6 +49,7 @@ export default function EditHistoryModal({
   };
 
   const handleStartTimeEdit = () => {
+    Keyboard.dismiss();
     setTimeInput(secondsToHMS(editingHistoryRecord.durationSeconds || 0));
     setEditingTime(true);
   };
@@ -45,6 +57,7 @@ export default function EditHistoryModal({
   const handleSaveTime = () => {
     const newSeconds = parseHMStoSeconds(timeInput);
     setEditingHistoryRecord((prev) => prev ? { ...prev, durationSeconds: newSeconds } : prev);
+    Keyboard.dismiss();
     setEditingTime(false);
   };
 
@@ -54,8 +67,11 @@ export default function EditHistoryModal({
 
   return (
     <Modal visible={showEditHistoryModal} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContentLarge}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.modalOverlay}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={styles.modalContentLarge}>
           <Text style={styles.modalTitle}>Modifica sessione passata</Text>
           <Text style={styles.historyName}>{editingHistoryRecord.name}</Text>
 
@@ -84,6 +100,8 @@ export default function EditHistoryModal({
                   value={timeInput}
                   onChangeText={setTimeInput}
                   keyboardType="numbers-and-punctuation"
+                  returnKeyType="done"
+                  onSubmitEditing={handleSaveTime}
                   autoFocus
                   placeholder="HH:MM:SS"
                 />
@@ -98,7 +116,10 @@ export default function EditHistoryModal({
                   <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>OK</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => setEditingTime(false)}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setEditingTime(false);
+                  }}
                   style={{
                     paddingHorizontal: 8,
                     paddingVertical: 4,
@@ -114,7 +135,13 @@ export default function EditHistoryModal({
             )}
           </View>
 
-          <ScrollView style={styles.exerciseList}>
+          <ScrollView
+            style={styles.exerciseList}
+            automaticallyAdjustKeyboardInsets
+            contentContainerStyle={{ paddingBottom: 16 }}
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+            onScrollBeginDrag={Keyboard.dismiss}>
             {editingHistoryRecord.exercises.map((ex) => (
               <View key={ex.id} style={styles.viewExerciseItem}>
                 <Text style={styles.viewExerciseName}>
@@ -132,6 +159,8 @@ export default function EditHistoryModal({
                       <TextInput
                         style={styles.historyEditInput}
                         keyboardType="numeric"
+                        returnKeyType="done"
+                        onSubmitEditing={Keyboard.dismiss}
                         value={String(sd.duration || 0)}
                         onChangeText={(text) =>
                           updateHistorySetDetail(ex.id, idx, 'duration', text)
@@ -142,6 +171,8 @@ export default function EditHistoryModal({
                         <TextInput
                           style={styles.historyEditInput}
                           keyboardType="decimal-pad"
+                          returnKeyType="done"
+                          onSubmitEditing={Keyboard.dismiss}
                           value={String(sd.weight || 0)}
                           onChangeText={(text) =>
                             updateHistorySetDetail(ex.id, idx, 'weight', text)
@@ -150,6 +181,8 @@ export default function EditHistoryModal({
                         <TextInput
                           style={styles.historyEditInput}
                           keyboardType="numeric"
+                          returnKeyType="done"
+                          onSubmitEditing={Keyboard.dismiss}
                           value={String(sd.reps || 0)}
                           onChangeText={(text) =>
                             updateHistorySetDetail(ex.id, idx, 'reps', text)
@@ -163,9 +196,10 @@ export default function EditHistoryModal({
                         styles.checkButton,
                         sd.completed && styles.checkButtonComplete,
                       ]}
-                      onPress={() =>
-                        updateHistorySetDetail(ex.id, idx, 'completed', null)
-                      }>
+                      onPress={() => {
+                        Keyboard.dismiss();
+                        updateHistorySetDetail(ex.id, idx, 'completed', null);
+                      }}>
                       <Text style={styles.checkText}>
                         {sd.completed ? '✓' : ''}
                       </Text>
@@ -190,6 +224,9 @@ export default function EditHistoryModal({
                     placeholder="Note su questo esercizio..."
                     placeholderTextColor={isDarkMode ? '#64748b' : '#94a3b8'}
                     value={ex.note || ''}
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                    blurOnSubmit
                     onChangeText={(val) => {
                       setEditingHistoryRecord((prev) => {
                         if (!prev) return prev;
@@ -212,6 +249,7 @@ export default function EditHistoryModal({
             <TouchableOpacity
               style={[styles.secondaryButton, styles.modalButtonFlex]}
               onPress={() => {
+                Keyboard.dismiss();
                 setShowEditHistoryModal(false);
                 setEditingHistoryRecord(null);
                 setEditingTime(false);
@@ -221,12 +259,16 @@ export default function EditHistoryModal({
 
             <TouchableOpacity
               style={[styles.primaryButton, styles.modalButtonFlex]}
-              onPress={saveEditedHistory}>
+              onPress={() => {
+                Keyboard.dismiss();
+                saveEditedHistory();
+              }}>
               <Text style={styles.primaryButtonText}>Salva</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

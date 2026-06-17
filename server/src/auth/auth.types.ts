@@ -2,9 +2,8 @@ export type PublicUser = {
   id: number;
   email: string;
   name: string;
-  surname: string | null;
+  surname: string;
   age: number | null;
-  gender: string | null;
   birthDate: Date | null;
   weight: number | null;
   height: number | null;

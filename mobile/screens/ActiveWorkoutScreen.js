@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   Keyboard,
-  Platform,
   SafeAreaView,
   View,
   Image,
@@ -20,11 +19,9 @@ import { getStyles } from '../styles/styles';
 import DraggableExerciseList from '../components/DraggableExerciseList';
 import DraftTextInput from '../components/DraftTextInput';
 import HelpButton from '../components/HelpModal';
-import KeyboardDoneToolbar from '../components/KeyboardDoneToolbar';
 
 const isTimed = (type) => type === 'timed';
 const isRepsOnly = (type) => type === 'reps';
-const keyboardAccessoryId = 'active-workout-keyboard-accessory';
 const normalizeNumberInput = (value) => (value === '' ? '0' : value);
 
 function computeSessionStats(exercises) {
@@ -239,64 +236,64 @@ export default function ActiveWorkoutScreen({
         </View>
       </View>
 
-      {/* WORKOUT TIMER — now editable */}
-      <View style={styles.workoutTimerContainer}>
-        <Text style={styles.workoutTimerLabel}>Tempo allenamento</Text>
-        {editingWorkoutTime ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4 }}>
-            <TextInput
-              style={{
-                borderBottomWidth: 2,
-                borderBottomColor: '#86B749',
-                fontSize: 22,
-                fontWeight: '700',
-                color: isDarkMode ? '#ffffff' : '#1e293b',
-                minWidth: 110,
-                textAlign: 'center',
-                paddingVertical: 2,
-              }}
-              value={workoutTimeInput}
-              onChangeText={setWorkoutTimeInput}
-              keyboardType="numbers-and-punctuation"
-              returnKeyType="done"
-              inputAccessoryViewID={keyboardAccessoryId}
-              onSubmitEditing={Keyboard.dismiss}
-              autoFocus
-              placeholder="HH:MM:SS"
-              placeholderTextColor={isDarkMode ? '#64748b' : '#94a3b8'}
-            />
-            <TouchableOpacity
-              onPress={handleSaveTime}
-              style={{ backgroundColor: '#86B749', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8 }}>
-              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>OK</Text>
+      <View style={{ flex: 1 }}>
+        {/* WORKOUT TIMER — now editable */}
+        <View style={styles.workoutTimerContainer}>
+          <Text style={styles.workoutTimerLabel}>Tempo allenamento</Text>
+          {editingWorkoutTime ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4 }}>
+              <TextInput
+                style={{
+                  borderBottomWidth: 2,
+                  borderBottomColor: '#86B749',
+                  fontSize: 22,
+                  fontWeight: '700',
+                  color: isDarkMode ? '#ffffff' : '#1e293b',
+                  minWidth: 110,
+                  textAlign: 'center',
+                  paddingVertical: 2,
+                }}
+                value={workoutTimeInput}
+                onChangeText={setWorkoutTimeInput}
+                keyboardType="numbers-and-punctuation"
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
+                autoFocus
+                placeholder="HH:MM:SS"
+                placeholderTextColor={isDarkMode ? '#64748b' : '#94a3b8'}
+              />
+              <TouchableOpacity
+                onPress={handleSaveTime}
+                style={{ backgroundColor: '#86B749', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8 }}>
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>OK</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setEditingWorkoutTime(false)}>
+                <Text style={{ color: '#ef4444', fontWeight: '700', fontSize: 18 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity onPress={handleStartTimeEdit} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Text style={styles.workoutTimerValue}>{formatWorkoutTime(workoutSeconds)}</Text>
+              <Ionicons name="create-outline" size={14} color="#86B749" style={{ marginTop: 2 }} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setEditingWorkoutTime(false)}>
-              <Text style={{ color: '#ef4444', fontWeight: '700', fontSize: 18 }}>✕</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <TouchableOpacity onPress={handleStartTimeEdit} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            <Text style={styles.workoutTimerValue}>{formatWorkoutTime(workoutSeconds)}</Text>
-            <Ionicons name="create-outline" size={14} color="#86B749" style={{ marginTop: 2 }} />
-          </TouchableOpacity>
-        )}
-      </View>
+          )}
+        </View>
 
-      {/* EXERCISE LIST — flex:1 so it fills remaining space and scrolls */}
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <View style={{ flex: 1 }}>
-        <DraggableExerciseList
-          items={activeWorkout.exercises}
-          onReorder={(newExercises) =>
-            setActiveWorkout((prev) => ({ ...prev, exercises: newExercises }))
-          }
-          contentContainerStyle={styles.content}
-          ListFooterComponent={ListFooter}
-          renderItem={(ex, triggerDrag, isDragging) => {
-          const exType = ex.type || 'weight_reps';
-          const timed = isTimed(exType);
-          const repsOnly = isRepsOnly(exType);
-          const hasRestTime = true;
+        {/* EXERCISE LIST — flex:1 so it fills remaining space and scrolls */}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={{ flex: 1 }}>
+          <DraggableExerciseList
+            items={activeWorkout.exercises}
+            onReorder={(newExercises) =>
+              setActiveWorkout((prev) => ({ ...prev, exercises: newExercises }))
+            }
+            contentContainerStyle={styles.content}
+            ListFooterComponent={ListFooter}
+            renderItem={(ex, triggerDrag, isDragging) => {
+            const exType = ex.type || 'weight_reps';
+            const timed = isTimed(exType);
+            const repsOnly = isRepsOnly(exType);
+            const hasRestTime = true;
 
           return (
             <Swipeable
@@ -332,7 +329,7 @@ export default function ActiveWorkoutScreen({
                         {ex.name}
                       </Text>
                       <Text style={styles.muscleGroup}>
-                        {ex.muscleGroup}{ex.subcategory ? ` • ${ex.subcategory}` : ''} ℹ️
+                        {ex.muscleGroup}{ex.equipmentType ? ` • ${ex.equipmentType}` : ''} ℹ️
                       </Text>
                     </TouchableOpacity>
 
@@ -382,8 +379,7 @@ export default function ActiveWorkoutScreen({
                             <DraftTextInput
                               style={styles.setCellInput}
                               keyboardType="decimal-pad"
-                              returnKeyType={Platform.OS === 'ios' ? 'done' : 'default'}
-                              inputAccessoryViewID={keyboardAccessoryId}
+                              returnKeyType="done"
                               value={sd.duration}
                               fallback={0}
                               normalizeOnCommit={normalizeNumberInput}
@@ -426,8 +422,7 @@ export default function ActiveWorkoutScreen({
                             <DraftTextInput
                               style={styles.setCellInput}
                               keyboardType="numeric"
-                              returnKeyType={Platform.OS === 'ios' ? 'done' : 'default'}
-                              inputAccessoryViewID={keyboardAccessoryId}
+                              returnKeyType="done"
                               value={sd.reps}
                               fallback={0}
                               normalizeOnCommit={normalizeNumberInput}
@@ -471,8 +466,7 @@ export default function ActiveWorkoutScreen({
                             <DraftTextInput
                               style={styles.setCellInput}
                               keyboardType="decimal-pad"
-                              returnKeyType={Platform.OS === 'ios' ? 'done' : 'default'}
-                              inputAccessoryViewID={keyboardAccessoryId}
+                              returnKeyType="done"
                               value={sd.weight}
                               fallback={0}
                               normalizeOnCommit={normalizeNumberInput}
@@ -482,8 +476,7 @@ export default function ActiveWorkoutScreen({
                             <DraftTextInput
                               style={styles.setCellInput}
                               keyboardType="numeric"
-                              returnKeyType={Platform.OS === 'ios' ? 'done' : 'default'}
-                              inputAccessoryViewID={keyboardAccessoryId}
+                              returnKeyType="done"
                               value={sd.reps}
                               fallback={0}
                               normalizeOnCommit={normalizeNumberInput}
@@ -537,35 +530,31 @@ export default function ActiveWorkoutScreen({
             </Swipeable>
           );
         }}
-      />
-        </View>
-      </TouchableWithoutFeedback>
-
-      <KeyboardDoneToolbar
-        enabled={Platform.OS === 'ios'}
-        isDarkMode={isDarkMode}
-      />
-
-      {/* FOOTER RECOVERY TIMER */}
-      {timerActive || timer > 0 ? (
-        <View style={styles.timerBar}>
-          <Text style={styles.timerLabel}>Recupero</Text>
-          <Text style={styles.timerCountdown}>
-            {Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}
-          </Text>
-          <View style={styles.timerControlsRow}>
-            <TouchableOpacity style={styles.timerControlButton} onPress={() => adjustTimer(-15)}>
-              <Text style={styles.timerControlText}>−15s</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.timerControlButtonSecondary} onPress={skipTimer}>
-              <Text style={styles.timerControlTextSecondary}>Salta</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.timerControlButton} onPress={() => adjustTimer(15)}>
-              <Text style={styles.timerControlText}>+15s</Text>
-            </TouchableOpacity>
+        />
           </View>
-        </View>
-      ) : null}
+        </TouchableWithoutFeedback>
+
+        {/* FOOTER RECOVERY TIMER */}
+        {timerActive || timer > 0 ? (
+          <View style={styles.timerBar}>
+            <Text style={styles.timerLabel}>Recupero</Text>
+            <Text style={styles.timerCountdown}>
+              {Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}
+            </Text>
+            <View style={styles.timerControlsRow}>
+              <TouchableOpacity style={styles.timerControlButton} onPress={() => adjustTimer(-15)}>
+                <Text style={styles.timerControlText}>−15s</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.timerControlButtonSecondary} onPress={skipTimer}>
+                <Text style={styles.timerControlTextSecondary}>Salta</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.timerControlButton} onPress={() => adjustTimer(15)}>
+                <Text style={styles.timerControlText}>+15s</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
+      </View>
 
       {/* STATS MODAL */}
       <Modal visible={showStats} transparent animationType="fade">

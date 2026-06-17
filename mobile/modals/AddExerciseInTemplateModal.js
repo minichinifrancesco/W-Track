@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import {
-  InputAccessoryView,
   Keyboard,
   Modal,
   Platform,
@@ -8,6 +7,7 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   TextInput,
 } from 'react-native';
 import { useEffectiveDark } from '../context/SettingsContext';
@@ -16,9 +16,8 @@ import ExerciseDescriptionModal from '../components/ExerciseDescriptionModal';
 import FilterDropdown from '../components/FilterDropdown';
 
 const MUSCLE_OPTIONS = ['Cardio', 'Gambe e glutei', 'Petto', 'Schiena', 'Spalle', 'Bicipiti', 'Tricipiti', 'Addome e core', 'Polpacci', 'Glutei specifici', 'Full body'];
-const CATEGORY_OPTIONS = ['Macchinari', 'Corpo libero', 'Pesi'];
+const EQUIPMENT_OPTIONS = ['Macchinari', 'Corpo libero', 'Pesi liberi', 'Con pesi', 'Cavi', 'Cardio machine', 'Altro'];
 const IS_GREEN = '#86B749';
-const keyboardAccessoryId = 'add-template-exercise-keyboard-accessory';
 
 // Extracting row item as a React.memo component prevents re-rendering all items when one is toggled
 const ExerciseListItem = React.memo(function ExerciseListItem({
@@ -107,7 +106,7 @@ export default function AddExerciseInTemplateModal({
   const styles = getStyles(isDarkMode);
   const [search, setSearch] = useState('');
   const [selectedMuscle, setSelectedMuscle] = useState(null);
-  const [selectedStyle, setSelectedStyle] = useState(null);
+  const [selectedEquipment, setSelectedEquipment] = useState(null);
 
   // Multi-select state: array of exercise objects in selection order
   const [selectedExercises, setSelectedExercises] = useState([]);
@@ -132,14 +131,10 @@ export default function AddExerciseInTemplateModal({
         if (!ex.name.toLowerCase().includes(query)) return false;
       }
       if (selectedMuscle && ex.muscleGroup !== selectedMuscle) return false;
-      if (selectedStyle) {
-        if (selectedStyle === 'Macchinari' && ex.subcategory !== 'Macchinari') return false;
-        if (selectedStyle === 'Corpo libero' && ex.subcategory !== 'Corpo libero') return false;
-        if (selectedStyle === 'Pesi' && ex.subcategory !== 'Pesi liberi' && ex.subcategory !== 'Con pesi') return false;
-      }
+      if (selectedEquipment && (ex.equipmentType || 'Altro') !== selectedEquipment) return false;
       return true;
     });
-  }, [exercises, search, selectedMuscle, selectedStyle]);
+  }, [exercises, search, selectedMuscle, selectedEquipment]);
 
   const grouped = useMemo(() => {
     const res = {};
@@ -151,12 +146,14 @@ export default function AddExerciseInTemplateModal({
   }, [filteredExercises]);
 
   const handleOpenLocalDescription = useCallback((item) => {
+    Keyboard.dismiss();
     const fullEx = exercises.find(e => e.id === item.id || e.name === item.name);
     setLocalSelectedExercise(fullEx || item);
     setLocalShowDescription(true);
   }, [exercises]);
 
   const toggleExerciseSelection = useCallback((e) => {
+    Keyboard.dismiss();
     setSelectedExercises((prev) => {
       const exists = prev.find((x) => x.id === e.id);
       if (exists) {
@@ -173,27 +170,30 @@ export default function AddExerciseInTemplateModal({
   }, [selectedIdsMap]);
 
   const handleClose = useCallback(() => {
+    Keyboard.dismiss();
     setShowAddExerciseInTemplate(false);
     setTemplateSelectedExercise(null);
     setSelectedExercises([]);
     setSearch('');
     setSelectedMuscle(null);
-    setSelectedStyle(null);
+    setSelectedEquipment(null);
   }, [setShowAddExerciseInTemplate, setTemplateSelectedExercise]);
 
   const handleConfirm = useCallback(() => {
     if (selectedExercises.length === 0) return;
+    Keyboard.dismiss();
     addMultipleExercisesToTemplate(selectedExercises);
     setSelectedExercises([]);
     setSearch('');
     setSelectedMuscle(null);
-    setSelectedStyle(null);
+    setSelectedEquipment(null);
   }, [selectedExercises, addMultipleExercisesToTemplate]);
 
   return (
     <Modal visible={showAddExerciseInTemplate} animationType="slide" transparent>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContentLarge}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={styles.modalContentLarge}>
           <Text style={styles.modalTitle}>Aggiungi esercizi</Text>
 
           <Text style={{ fontSize: 12, color: '#64748b', textAlign: 'center', marginBottom: 8 }}>
@@ -207,7 +207,6 @@ export default function AddExerciseInTemplateModal({
             value={search}
             onChangeText={setSearch}
             placeholderTextColor="#94a3b8"
-            inputAccessoryViewID={keyboardAccessoryId}
             returnKeyType="done"
             onSubmitEditing={Keyboard.dismiss}
           />
@@ -223,19 +222,20 @@ export default function AddExerciseInTemplateModal({
               onSelect={setSelectedMuscle}
             />
             <FilterDropdown
-              label="Categoria"
+              label="Tipo attrezzatura"
               icon="🏷️"
-              options={CATEGORY_OPTIONS}
-              selected={selectedStyle}
-              allLabel="Tutte le categorie"
-              onSelect={setSelectedStyle}
+              options={EQUIPMENT_OPTIONS}
+              selected={selectedEquipment}
+              allLabel="Tutte le attrezzature"
+              onSelect={setSelectedEquipment}
             />
           </View>
 
           <ScrollView
             style={styles.exerciseList}
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-            keyboardShouldPersistTaps="handled">
+            keyboardShouldPersistTaps="handled"
+            onScrollBeginDrag={Keyboard.dismiss}>
             {Object.keys(grouped).length === 0 ? (
               <Text style={{ textAlign: 'center', color: '#6b7280', marginTop: 20 }}>Nessun esercizio trovato</Text>
             ) : (
@@ -305,26 +305,8 @@ export default function AddExerciseInTemplateModal({
             <Text style={styles.secondaryButtonText}>Chiudi</Text>
           </TouchableOpacity>
 
-          {Platform.OS === 'ios' && (
-            <InputAccessoryView nativeID={keyboardAccessoryId}>
-              <View
-                style={{
-                  alignItems: 'flex-end',
-                  backgroundColor: isDarkMode ? '#1e293b' : '#f8fafc',
-                  borderTopColor: isDarkMode ? '#334155' : '#cbd5e1',
-                  borderTopWidth: 1,
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                }}>
-                <TouchableOpacity onPress={Keyboard.dismiss}>
-                  <Text style={{ color: '#86B749', fontSize: 16, fontWeight: '800' }}>
-                    Fine
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </InputAccessoryView>
-          )}
-        </View>
+          </View>
+        </TouchableWithoutFeedback>
       </View>
 
       <ExerciseDescriptionModal

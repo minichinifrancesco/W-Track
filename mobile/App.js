@@ -1,5 +1,5 @@
 import 'react-native-gesture-handler';
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Alert,
   Platform,
@@ -17,13 +17,17 @@ import {
 } from './context/SettingsContext';
 import { Ionicons } from '@expo/vector-icons';
 import {
+  archiveWorkoutPlan,
   createCustomExercise as createCustomExerciseRequest,
+  createWorkoutPlan,
+  createWorkoutRecord,
   deleteCustomExercise as deleteCustomExerciseRequest,
   getExercises,
   getUserData,
   login as loginRequest,
   register as registerRequest,
-  saveUserData,
+  updateWorkoutPlan,
+  updateWorkoutNotes,
   updateProfile,
 } from './services/api';
 
@@ -184,7 +188,7 @@ const FloatingWorkoutBar = React.memo(function FloatingWorkoutBar({
 
 function MainApp() {
   const isDarkMode = useEffectiveDark();
-  const { settings } = useSettings();
+  const { settings, loadSettings, clearSettings } = useSettings();
   const styles = getStyles(isDarkMode);
 
   const [currentScreen, setCurrentScreen] = useState('login');
@@ -333,8 +337,6 @@ function MainApp() {
     return () => clearInterval(interval);
   }, [activeWorkout, isPaused]);
 
-  const saveDebounceTimer = useRef(null);
-
   const isCustomExercise = (exercise) =>
     exercise?.custom === true || exercise?.source === 'CUSTOM';
 
@@ -355,6 +357,20 @@ function MainApp() {
   const normalizeExercises = (value, catalog = baseExercises) => {
     return mergeExerciseCatalog(catalog, value);
   };
+
+  const applyServerData = useCallback((serverData, catalog = exercises) => {
+    const nextData = {
+      workouts: Array.isArray(serverData?.workouts) ? serverData.workouts : [],
+      exercises: normalizeExercises(serverData?.exercises, catalog),
+      history: Array.isArray(serverData?.history) ? serverData.history : [],
+      badges: Array.isArray(serverData?.badges) ? serverData.badges : [],
+    };
+
+    setWorkouts(nextData.workouts);
+    setExercises(nextData.exercises);
+    setHistory(nextData.history);
+    setBadges(nextData.badges);
+  }, [exercises, normalizeExercises]);
 
   const loadExerciseCatalog = async (token) => {
     try {
@@ -388,32 +404,6 @@ function MainApp() {
     setProfileWeight(targetUser?.weight ? String(targetUser.weight) : '');
   };
 
-  const saveData = useCallback(async () => {
-    try {
-      await saveUserData(authToken, {
-        workouts,
-        exercises: getCustomExercises(exercises),
-        history,
-        badges,
-      });
-    } catch (error) {
-      console.error('Errore salvataggio dati:', error.message || error);
-    }
-  }, [user, authToken, workouts, exercises, history, badges]);
-
-  useEffect(() => {
-    if (!user || !authToken || isHydrating) return;
-
-    if (saveDebounceTimer.current) clearTimeout(saveDebounceTimer.current);
-    saveDebounceTimer.current = setTimeout(() => {
-      saveData();
-    }, 600);
-
-    return () => {
-      if (saveDebounceTimer.current) clearTimeout(saveDebounceTimer.current);
-    };
-  }, [user, authToken, workouts, exercises, history, badges, isHydrating, saveData]);
-
   const loadUserData = async (token, catalog = baseExercises) => {
     let serverData = null;
     try {
@@ -422,17 +412,7 @@ function MainApp() {
       console.error('Errore caricamento dati server:', error.message || error);
     }
 
-    const nextData = {
-      workouts: Array.isArray(serverData?.workouts) ? serverData.workouts : [],
-      exercises: normalizeExercises(serverData?.exercises, catalog),
-      history: Array.isArray(serverData?.history) ? serverData.history : [],
-      badges: Array.isArray(serverData?.badges) ? serverData.badges : [],
-    };
-
-    setWorkouts(nextData.workouts);
-    setExercises(nextData.exercises);
-    setHistory(nextData.history);
-    setBadges(nextData.badges);
+    applyServerData(serverData, catalog);
   };
 
   const openExerciseDescription = useCallback((exercise) => {
@@ -506,6 +486,7 @@ function MainApp() {
       applyUserProfile(nextUser);
       setCurrentScreen('home');
       setPassword('');
+      await loadSettings(token);
       const catalog = await loadExerciseCatalog(token);
       await loadUserData(token, catalog);
     } catch (error) {
@@ -611,6 +592,7 @@ function MainApp() {
     setExercises(baseExercises);
     setHistory([]);
     setBadges([]);
+    clearSettings();
   };
 
   const createWorkout = () => {
@@ -625,20 +607,35 @@ function MainApp() {
   };
 
   const deleteWorkout = useCallback((id) => {
-    Alert.alert('Conferma', 'Vuoi eliminare questa scheda?', [
+    Alert.alert('Conferma', 'Vuoi archiviare questa scheda?', [
       { text: 'Annulla', style: 'cancel' },
       {
-        text: 'Elimina',
+        text: 'Archivia',
         style: 'destructive',
-        onPress: () =>
-          setWorkouts((prev) => prev.filter((w) => w.id !== id)),
+        onPress: async () => {
+          if (!authToken) {
+            Alert.alert('Errore', 'Effettua il login per archiviare la scheda');
+            return;
+          }
+
+          try {
+            const serverData = await archiveWorkoutPlan(authToken, id);
+            applyServerData(serverData);
+          } catch (error) {
+            Alert.alert(
+              'Errore scheda',
+              error.message || 'Archiviazione scheda non riuscita'
+            );
+          }
+        },
       },
     ]);
-  }, []);
+  }, [authToken, applyServerData]);
 
   const createCustomExercise = async (override = null) => {
     const nextName = override?.name ?? customExerciseName;
     const nextMuscleGroup = override?.muscleGroup ?? customMuscleGroup;
+    const nextEquipmentType = override?.equipmentType ?? 'Altro';
     const nextType = override?.type ?? customExerciseType;
     const nextDescription = override?.description ?? customExerciseDescription;
     const cleanedExName = nextName.trim();
@@ -668,6 +665,7 @@ function MainApp() {
       const savedExercise = await createCustomExerciseRequest(authToken, {
         name: cleanedExName,
         muscleGroup: nextMuscleGroup,
+        equipmentType: nextEquipmentType,
         type: nextType || 'weight_reps',
         description: nextDescription.trim() || '',
       });
@@ -675,6 +673,7 @@ function MainApp() {
         ...prev,
         {
           ...savedExercise,
+          equipmentType: savedExercise.equipmentType || nextEquipmentType,
           description: (savedExercise.description ?? nextDescription.trim()) || '',
         },
       ]);
@@ -770,8 +769,12 @@ function MainApp() {
     setCurrentScreen('editTemplate');
   }, []);
 
-  const saveTemplateWorkout = useCallback(() => {
+  const saveTemplateWorkout = useCallback(async () => {
     if (!templateWorkout) return;
+    if (!authToken) {
+      Alert.alert('Errore', 'Effettua il login per salvare la scheda');
+      return;
+    }
 
     const cleanedName = (templateWorkout.name || '').trim();
     // Regex matches strings that are only hyphens, punctuation or special characters
@@ -812,22 +815,29 @@ function MainApp() {
       };
     });
 
-    const finalWorkout = { ...templateWorkout, exercises: normalizedExercises, isNew: false };
+    const finalWorkout = {
+      ...templateWorkout,
+      name: cleanedName,
+      active: templateWorkout.active === false ? false : true,
+      exercises: normalizedExercises,
+      isNew: false,
+    };
 
-    if (templateWorkout.isNew) {
-      // New workout: add to list
-      setWorkouts((prev) => [...prev, finalWorkout]);
-    } else {
-      setWorkouts((prev) =>
-        prev.map((w) =>
-          w.id === templateWorkout.id ? finalWorkout : w
-        )
+    try {
+      const serverData = templateWorkout.isNew
+        ? await createWorkoutPlan(authToken, finalWorkout)
+        : await updateWorkoutPlan(authToken, templateWorkout.id, finalWorkout);
+
+      applyServerData(serverData);
+      setTemplateWorkout(null);
+      setCurrentScreen('home');
+    } catch (error) {
+      Alert.alert(
+        'Errore scheda',
+        error.message || 'Salvataggio scheda non riuscito'
       );
     }
-
-    setTemplateWorkout(null);
-    setCurrentScreen('home');
-  }, [templateWorkout]);
+  }, [templateWorkout, authToken, applyServerData]);
 
   const startRestTimer = useCallback((seconds) => {
     if (!seconds || seconds <= 0) return;
@@ -1172,7 +1182,7 @@ function MainApp() {
       exerciseId: exerciseData.id,
       name: exerciseData.name,
       muscleGroup: exerciseData.muscleGroup,
-      subcategory: exerciseData.subcategory,
+      equipmentType: exerciseData.equipmentType || 'Altro',
       type: exType,
       sets: 1,
       reps: 0,
@@ -1379,7 +1389,7 @@ function MainApp() {
       exerciseId: templateSelectedExercise.id,
       name: templateSelectedExercise.name,
       muscleGroup: templateSelectedExercise.muscleGroup,
-      subcategory: templateSelectedExercise.subcategory,
+      equipmentType: templateSelectedExercise.equipmentType || 'Altro',
       type: exType,
       sets: 1,
       reps: 0,
@@ -1410,7 +1420,7 @@ function MainApp() {
         exerciseId: ex.id,
         name: ex.name,
         muscleGroup: ex.muscleGroup,
-        subcategory: ex.subcategory,
+        equipmentType: ex.equipmentType || 'Altro',
         type: exType,
         sets: 1,
         reps: 0,
@@ -1426,8 +1436,12 @@ function MainApp() {
     setShowAddExerciseInTemplate(false);
   }, [templateWorkout, settings.defaultRestTime]);
 
-  const finishWorkout = useCallback(() => {
+  const finishWorkout = useCallback(async () => {
     if (!activeWorkout) return;
+    if (!authToken) {
+      Alert.alert('Errore', 'Effettua il login per salvare il workout');
+      return;
+    }
 
     const normalizedExercises = activeWorkout.exercises.map((ex) => {
       const exType = ex.type || 'weight_reps';
@@ -1454,6 +1468,7 @@ function MainApp() {
     const recordId = Date.now();
     const recordDate = new Date().toISOString();
     const prResult = detectPersonalRecords(normalizedExercises, history, recordDate, recordId);
+    const earnedBadges = prResult.badges;
 
     const workoutRecord = {
       id: recordId,
@@ -1464,36 +1479,33 @@ function MainApp() {
       endTime: new Date(),
       date: recordDate,
       durationSeconds: workoutSeconds,
+      prBadges: earnedBadges,
     };
 
-    const nextHistory = [workoutRecord, ...history];
-    const earnedBadges = prResult.badges;
+    try {
+      const serverData = await createWorkoutRecord(authToken, workoutRecord);
+      applyServerData(serverData);
 
-    setHistory(nextHistory);
-    if (earnedBadges && earnedBadges.length > 0) {
-      setBadges((prev) => [...earnedBadges, ...prev]);
+      setActiveWorkout(null);
+      setWorkoutSeconds(0);
+      setTimer(0);
+      setTimerActive(false);
+      setFocusedMuscle(null);
+      setCurrentScreen('home');
+
+      Alert.alert(
+        'Completato!',
+        earnedBadges.length > 0
+          ? `Workout salvato nello storico. Nuovi badge ottenuti: ${earnedBadges.length}`
+          : 'Workout salvato nello storico'
+      );
+    } catch (error) {
+      Alert.alert(
+        'Errore workout',
+        error.message || 'Salvataggio workout non riuscito'
+      );
     }
-
-    setWorkouts((prev) =>
-      prev.map((w) =>
-        w.id === activeWorkout.id ? { ...w, exercises: normalizedExercises } : w
-      )
-    );
-
-    setActiveWorkout(null);
-    setWorkoutSeconds(0);
-    setTimer(0);
-    setTimerActive(false);
-    setFocusedMuscle(null);
-    setCurrentScreen('home');
-
-    Alert.alert(
-      'Completato!',
-      earnedBadges.length > 0
-        ? `Workout salvato nello storico. Nuovi badge ottenuti: ${earnedBadges.length}`
-        : 'Workout salvato nello storico'
-    );
-  }, [activeWorkout, history, workoutSeconds]);
+  }, [activeWorkout, history, workoutSeconds, authToken, applyServerData]);
 
   const openHistoryDetail = useCallback((record) => {
     setSelectedHistoryRecord(record);
@@ -1546,7 +1558,7 @@ function MainApp() {
     });
   }, []);
 
-  const updateHistoryGeneralNote = useCallback((recordId, noteText) => {
+  const updateHistoryGeneralNote = useCallback(async (recordId, noteText) => {
     setHistory((prev) =>
       prev.map((item) =>
         item.id === recordId ? { ...item, generalNote: noteText } : item
@@ -1555,7 +1567,14 @@ function MainApp() {
     if (selectedHistoryRecord && selectedHistoryRecord.id === recordId) {
       setSelectedHistoryRecord((prev) => prev ? { ...prev, generalNote: noteText } : prev);
     }
-  }, [selectedHistoryRecord]);
+
+    if (!authToken) return;
+    try {
+      await updateWorkoutNotes(authToken, recordId, noteText);
+    } catch (error) {
+      console.error('Errore salvataggio nota workout:', error.message || error);
+    }
+  }, [selectedHistoryRecord, authToken]);
 
   const saveEditedHistory = useCallback(() => {
     if (!editingHistoryRecord) return;
@@ -1610,6 +1629,11 @@ function MainApp() {
     return grouped;
   }, [exercises]);
 
+  const activeWorkouts = useMemo(
+    () => workouts.filter((workout) => workout.active !== false),
+    [workouts]
+  );
+
   return (
     <>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={styles.header.backgroundColor} />
@@ -1626,7 +1650,7 @@ function MainApp() {
       )}
       {currentScreen === 'home' && (
         <HomeScreen
-          workouts={workouts}
+          workouts={activeWorkouts}
           formatDate={formatDate}
           handleLogout={handleLogout}
           startWorkout={startWorkout}

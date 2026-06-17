@@ -7,7 +7,16 @@ import {
 import { AuthUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
 
-const TRACKING_TYPES = new Set(['weight_reps', 'reps', 'timed']);
+const TRACKING_TYPES = new Set(['WEIGHT_REPS', 'REPS', 'TIMED']);
+const EQUIPMENT_TYPES = new Set([
+  'MACCHINARI',
+  'CORPO_LIBERO',
+  'PESI_LIBERI',
+  'CON_PESI',
+  'CAVI',
+  'CARDIO_MACHINE',
+  'ALTRO',
+]);
 
 @Injectable()
 export class ExercisesService {
@@ -34,8 +43,8 @@ export class ExercisesService {
     body: {
       name?: string;
       muscleGroup?: string;
+      equipmentType?: string | null;
       type?: string;
-      subcategory?: string | null;
       description?: string | null;
     },
   ) {
@@ -44,8 +53,8 @@ export class ExercisesService {
       body.muscleGroup,
       'Gruppo muscolare',
     );
+    const equipmentType = this.normalizeEquipmentType(body.equipmentType);
     const trackingType = this.normalizeTrackingType(body.type);
-    const subcategory = this.normalizeOptional(body.subcategory);
     const description = this.normalizeOptional(body.description);
 
     const existing = await this.prisma.exercise.findFirst({
@@ -65,7 +74,7 @@ export class ExercisesService {
       data: {
         name,
         muscleGroup,
-        subcategory,
+        equipmentType,
         trackingType,
         description,
         source: 'CUSTOM',
@@ -96,7 +105,7 @@ export class ExercisesService {
     id: number;
     name: string;
     muscleGroup: string;
-    subcategory: string | null;
+    equipmentType: string;
     trackingType: string;
     description: string | null;
     source: 'BASE' | 'CUSTOM';
@@ -105,8 +114,8 @@ export class ExercisesService {
       id: exercise.id,
       name: exercise.name,
       muscleGroup: exercise.muscleGroup,
-      subcategory: exercise.subcategory,
-      type: exercise.trackingType,
+      equipmentType: this.toClientEquipmentType(exercise.equipmentType),
+      type: this.toClientTrackingType(exercise.trackingType),
       description: exercise.description,
       custom: exercise.source === 'CUSTOM',
     };
@@ -127,9 +136,59 @@ export class ExercisesService {
 
   private normalizeTrackingType(value: string | undefined) {
     const normalized = (value ?? 'weight_reps').trim();
-    if (!TRACKING_TYPES.has(normalized)) {
+    const dbValue =
+      normalized === 'reps'
+        ? 'REPS'
+        : normalized === 'timed'
+          ? 'TIMED'
+          : normalized === 'WEIGHT_REPS' ||
+              normalized === 'REPS' ||
+              normalized === 'TIMED'
+            ? normalized
+            : 'WEIGHT_REPS';
+    if (!TRACKING_TYPES.has(dbValue)) {
       throw new BadRequestException('Tipologia esercizio non valida');
     }
-    return normalized;
+    return dbValue;
+  }
+
+  private normalizeEquipmentType(value: string | null | undefined) {
+    const normalized = (value ?? 'ALTRO').trim();
+    const dbValue =
+      normalized === 'Macchinari' || normalized === 'MACCHINARI'
+        ? 'MACCHINARI'
+        : normalized === 'Corpo libero' || normalized === 'CORPO_LIBERO'
+          ? 'CORPO_LIBERO'
+          : normalized === 'Pesi liberi' || normalized === 'PESI_LIBERI'
+            ? 'PESI_LIBERI'
+            : normalized === 'Con pesi' || normalized === 'CON_PESI'
+              ? 'CON_PESI'
+              : normalized === 'Cavi' || normalized === 'CAVI'
+                ? 'CAVI'
+                : normalized === 'Cardio machine' ||
+                    normalized === 'CARDIO_MACHINE'
+                  ? 'CARDIO_MACHINE'
+                  : 'ALTRO';
+
+    if (!EQUIPMENT_TYPES.has(dbValue)) {
+      throw new BadRequestException('Tipo attrezzatura non valido');
+    }
+    return dbValue;
+  }
+
+  private toClientTrackingType(value: string) {
+    if (value === 'REPS') return 'reps';
+    if (value === 'TIMED') return 'timed';
+    return 'weight_reps';
+  }
+
+  private toClientEquipmentType(value: string) {
+    if (value === 'MACCHINARI') return 'Macchinari';
+    if (value === 'CORPO_LIBERO') return 'Corpo libero';
+    if (value === 'PESI_LIBERI') return 'Pesi liberi';
+    if (value === 'CON_PESI') return 'Con pesi';
+    if (value === 'CAVI') return 'Cavi';
+    if (value === 'CARDIO_MACHINE') return 'Cardio machine';
+    return 'Altro';
   }
 }

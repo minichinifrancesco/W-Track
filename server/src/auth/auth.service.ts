@@ -22,11 +22,9 @@ type UserRecord = {
   id: number;
   email: string;
   name: string;
-  surname: string | null;
-  age: number | null;
-  gender: string | null;
-  birthDate: Date | null;
-  weightKg: number | null;
+  surname: string;
+  birthDate: Date;
+  weight: number | null;
   heightCm: number | null;
   registrationDate: Date;
 };
@@ -63,15 +61,8 @@ export class AuthService {
           name,
           surname,
           birthDate,
-          age: this.calculateAge(birthDate),
-          password: this.hashPassword(password),
-          appData: {
-            create: {
-              workouts: '[]',
-              exercises: '[]',
-              history: '[]',
-            },
-          },
+          passwordHash: this.hashPassword(password),
+          settings: { create: {} },
         },
       });
 
@@ -95,7 +86,7 @@ export class AuthService {
     const password = this.normalizeLoginPassword(body.password);
 
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user || !this.verifyPassword(password, user.password)) {
+    if (!user || !this.verifyPassword(password, user.passwordHash)) {
       throw new UnauthorizedException('Email o password non validi');
     }
 
@@ -116,23 +107,18 @@ export class AuthService {
     const birthDate =
       body.birthDate === undefined
         ? undefined
-        : this.toNullableBirthDate(body.birthDate);
-    const age =
-      birthDate !== undefined && birthDate !== null
-        ? this.calculateAge(birthDate)
-        : this.toNullableInteger(body.age);
+        : this.validateBirthDate(body.birthDate);
 
     const user = await this.prisma.user.update({
       where: { id: authUser.userId },
       data: {
         name: this.normalizeName(body.name, authUser.email),
         ...(body.surname !== undefined
-          ? { surname: this.toNullableText(body.surname) }
+          ? { surname: this.normalizeRequiredText(body.surname, 'Cognome') }
           : {}),
         ...(birthDate !== undefined ? { birthDate } : {}),
-        age,
         heightCm: this.toNullableFloat(body.height),
-        weightKg: this.toNullableFloat(body.weight),
+        weight: this.toNullableFloat(body.weight),
       },
     });
 
@@ -271,12 +257,6 @@ export class AuthService {
     return normalized || null;
   }
 
-  private toNullableInteger(value: number | string | null | undefined) {
-    if (value === null || value === undefined || value === '') return null;
-    const parsed = parseInt(String(value), 10);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-
   private toNullableFloat(value: number | string | null | undefined) {
     if (value === null || value === undefined || value === '') return null;
     const parsed = parseFloat(String(value));
@@ -380,10 +360,9 @@ export class AuthService {
       email: user.email,
       name: user.name,
       surname: user.surname,
-      age: user.age,
-      gender: user.gender,
+      age: this.calculateAge(user.birthDate),
       birthDate: user.birthDate,
-      weight: user.weightKg,
+      weight: user.weight,
       height: user.heightCm,
       registrationDate: user.registrationDate,
     };

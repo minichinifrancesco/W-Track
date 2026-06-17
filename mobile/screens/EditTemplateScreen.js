@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   Keyboard,
-  Platform,
   SafeAreaView,
   Text,
   TextInput,
@@ -15,11 +14,9 @@ import { getStyles } from '../styles/styles';
 import DraggableExerciseList from '../components/DraggableExerciseList';
 import DraftTextInput from '../components/DraftTextInput';
 import HelpButton from '../components/HelpModal';
-import KeyboardDoneToolbar from '../components/KeyboardDoneToolbar';
 
 const isTimed = (type) => type === 'timed';
 const isRepsOnly = (type) => type === 'reps';
-const keyboardAccessoryId = 'edit-template-keyboard-accessory';
 const normalizeNumberInput = (value) => (value === '' ? '0' : value);
 
 export default function EditTemplateScreen({
@@ -43,21 +40,6 @@ export default function EditTemplateScreen({
   const isDarkMode = useEffectiveDark();
   const { settings } = useSettings();
   const styles = getStyles(isDarkMode);
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
-
-  useEffect(() => {
-    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
-      setKeyboardVisible(true);
-    });
-    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardVisible(false);
-    });
-
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, []);
 
   if (!templateWorkout) return null;
 
@@ -87,20 +69,6 @@ export default function EditTemplateScreen({
         </Text>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          {keyboardVisible && Platform.OS !== 'ios' && (
-            <TouchableOpacity
-              onPress={Keyboard.dismiss}
-              style={{
-                backgroundColor: isDarkMode ? '#334155' : '#e2e8f0',
-                paddingHorizontal: 12,
-                paddingVertical: 7,
-                borderRadius: 999,
-              }}>
-              <Text style={{ color: isDarkMode ? '#f8fafc' : '#0f172a', fontWeight: '700', fontSize: 13 }}>
-                Fine
-              </Text>
-            </TouchableOpacity>
-          )}
           <HelpButton screen="edit" />
           <TouchableOpacity
             onPress={saveTemplateWorkout}
@@ -115,52 +83,52 @@ export default function EditTemplateScreen({
         </View>
       </View>
 
-      <View style={[styles.workoutTimerContainer, { flexDirection: 'row', alignItems: 'center' }]}>
-        <Text style={[styles.workoutTimerLabel, { marginRight: 8, minWidth: 52 }]}>Nome:</Text>
-        <TextInput
-          style={[
-            styles.workoutTimerValue,
-            {
-              flex: 1,
-              borderBottomWidth: 1.5,
-              borderBottomColor: '#86B749',
-              paddingVertical: 2,
-              paddingHorizontal: 4,
-              fontSize: 18,
-            },
-          ]}
-          value={templateWorkout.name}
-          onChangeText={(text) =>
-            setTemplateWorkout((prev) => ({ ...prev, name: text }))
-          }
-          placeholder="Nome scheda"
-          inputAccessoryViewID={keyboardAccessoryId}
-          returnKeyType="done"
-          onSubmitEditing={Keyboard.dismiss}
-          blurOnSubmit
-        />
-      </View>
+      <View style={{ flex: 1 }}>
+        <View style={[styles.workoutTimerContainer, { flexDirection: 'row', alignItems: 'center' }]}>
+          <Text style={[styles.workoutTimerLabel, { marginRight: 8, minWidth: 52 }]}>Nome:</Text>
+          <TextInput
+            style={[
+              styles.workoutTimerValue,
+              {
+                flex: 1,
+                borderBottomWidth: 1.5,
+                borderBottomColor: '#86B749',
+                paddingVertical: 2,
+                paddingHorizontal: 4,
+                fontSize: 18,
+              },
+            ]}
+            value={templateWorkout.name}
+            onChangeText={(text) =>
+              setTemplateWorkout((prev) => ({ ...prev, name: text }))
+            }
+            placeholder="Nome scheda"
+            returnKeyType="done"
+            onSubmitEditing={Keyboard.dismiss}
+            blurOnSubmit
+          />
+        </View>
 
-      {/* EXERCISE LIST — flex:1, scrollable, add button at bottom */}
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <View style={{ flex: 1 }}>
-        <DraggableExerciseList
-          items={templateWorkout.exercises}
-          onReorder={(newExercises) =>
-            setTemplateWorkout((prev) => ({ ...prev, exercises: newExercises }))
-          }
-          contentContainerStyle={styles.content}
-          ListFooterComponent={
-            <TouchableOpacity
-              style={[styles.addExerciseButton, { marginBottom: 8 }]}
-              onPress={openAddExercise}>
-              <Text style={styles.primaryButtonText}>+ Aggiungi esercizio</Text>
-            </TouchableOpacity>
-          }
-          renderItem={(ex, triggerDrag, isDragging) => {
-          const exType = ex.type || 'weight_reps';
-          const timed = isTimed(exType);
-          const repsOnly = isRepsOnly(exType);
+        {/* EXERCISE LIST — flex:1, scrollable, add button at bottom */}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={{ flex: 1 }}>
+          <DraggableExerciseList
+            items={templateWorkout.exercises}
+            onReorder={(newExercises) =>
+              setTemplateWorkout((prev) => ({ ...prev, exercises: newExercises }))
+            }
+            contentContainerStyle={styles.content}
+            ListFooterComponent={
+              <TouchableOpacity
+                style={[styles.addExerciseButton, { marginBottom: 8 }]}
+                onPress={openAddExercise}>
+                <Text style={styles.primaryButtonText}>+ Aggiungi esercizio</Text>
+              </TouchableOpacity>
+            }
+            renderItem={(ex, triggerDrag, isDragging) => {
+            const exType = ex.type || 'weight_reps';
+            const timed = isTimed(exType);
+            const repsOnly = isRepsOnly(exType);
 
           return (
             <Swipeable
@@ -185,7 +153,7 @@ export default function EditTemplateScreen({
                         {ex.name}
                       </Text>
                       <Text style={styles.muscleGroup}>
-                        {ex.muscleGroup}{ex.subcategory ? ` • ${ex.subcategory}` : ''} ℹ️
+                        {ex.muscleGroup}{ex.equipmentType ? ` • ${ex.equipmentType}` : ''} ℹ️
                       </Text>
                     </TouchableOpacity>
                     {timed || repsOnly ? (
@@ -217,8 +185,7 @@ export default function EditTemplateScreen({
                             <DraftTextInput
                               style={styles.setCellInput}
                               keyboardType="decimal-pad"
-                              returnKeyType={Platform.OS === 'ios' ? 'done' : 'default'}
-                              inputAccessoryViewID={keyboardAccessoryId}
+                              returnKeyType="done"
                               value={sd.duration}
                               fallback={0}
                               normalizeOnCommit={normalizeNumberInput}
@@ -252,8 +219,7 @@ export default function EditTemplateScreen({
                             <DraftTextInput
                               style={styles.setCellInput}
                               keyboardType="numeric"
-                              returnKeyType={Platform.OS === 'ios' ? 'done' : 'default'}
-                              inputAccessoryViewID={keyboardAccessoryId}
+                              returnKeyType="done"
                               value={sd.reps}
                               fallback={0}
                               normalizeOnCommit={normalizeNumberInput}
@@ -288,8 +254,7 @@ export default function EditTemplateScreen({
                             <DraftTextInput
                               style={styles.setCellInput}
                               keyboardType="decimal-pad"
-                              returnKeyType={Platform.OS === 'ios' ? 'done' : 'default'}
-                              inputAccessoryViewID={keyboardAccessoryId}
+                              returnKeyType="done"
                               value={sd.weight}
                               fallback={0}
                               normalizeOnCommit={normalizeNumberInput}
@@ -301,8 +266,7 @@ export default function EditTemplateScreen({
                             <DraftTextInput
                               style={styles.setCellInput}
                               keyboardType="numeric"
-                              returnKeyType={Platform.OS === 'ios' ? 'done' : 'default'}
-                              inputAccessoryViewID={keyboardAccessoryId}
+                              returnKeyType="done"
                               value={sd.reps}
                               fallback={0}
                               normalizeOnCommit={normalizeNumberInput}
@@ -337,8 +301,7 @@ export default function EditTemplateScreen({
                         backgroundColor: isDarkMode ? '#1e293b' : '#f8fafc',
                       }}
                       keyboardType="numeric"
-                      returnKeyType={Platform.OS === 'ios' ? 'done' : 'default'}
-                      inputAccessoryViewID={keyboardAccessoryId}
+                      returnKeyType="done"
                       value={ex.restTime}
                       fallback={60}
                       normalizeOnCommit={normalizeNumberInput}
@@ -378,7 +341,6 @@ export default function EditTemplateScreen({
                         placeholder="Aggiungi una nota (es. impugnatura, altezza sedile...)"
                         placeholderTextColor={isDarkMode ? '#64748b' : '#94a3b8'}
                         value={ex.note || ''}
-                        inputAccessoryViewID={keyboardAccessoryId}
                         onCommit={(val) => {
                           setTemplateWorkout((prev) => {
                             if (!prev) return prev;
@@ -407,14 +369,11 @@ export default function EditTemplateScreen({
             </Swipeable>
           );
         }}
-      />
-        </View>
-      </TouchableWithoutFeedback>
+        />
+          </View>
+        </TouchableWithoutFeedback>
+      </View>
 
-      <KeyboardDoneToolbar
-        enabled={Platform.OS === 'ios'}
-        isDarkMode={isDarkMode}
-      />
     </SafeAreaView>
   );
 }

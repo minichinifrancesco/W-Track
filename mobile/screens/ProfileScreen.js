@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { SafeAreaView, View, Image, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Alert, SafeAreaView, View, Image, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useEffectiveDark } from '../context/SettingsContext';
 import { logoCompact } from '../constants';
 import { getStyles } from '../styles/styles';
@@ -39,6 +39,21 @@ export default function ProfileScreen({
   const handleCloseBadges = useCallback(() => setShowBadges(false), []);
   const handleOpenBadges = useCallback(() => setShowBadges(true), []);
   const handleOpenSettings = useCallback(() => setShowSettings(true), []);
+  const confirmLogout = useCallback(() => {
+    Alert.alert(
+      'Conferma logout',
+      "Vuoi davvero uscire dall'app?",
+      [
+        { text: 'Annulla', style: 'cancel' },
+        {
+          text: 'Esci',
+          style: 'destructive',
+          onPress: handleLogout,
+        },
+      ],
+      { cancelable: true },
+    );
+  }, [handleLogout]);
   const profileFullName =
     [profileName, profileSurname].filter(Boolean).join(' ') ||
     'Nome non impostato';
@@ -60,7 +75,7 @@ export default function ProfileScreen({
         {/* Settings button + Help button + Logout button */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <TouchableOpacity
-            onPress={handleLogout}
+            onPress={confirmLogout}
             style={{
               backgroundColor: '#ef4444',
               paddingHorizontal: 10,

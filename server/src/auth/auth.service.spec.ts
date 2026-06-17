@@ -6,18 +6,17 @@ describe('AuthService', () => {
   type CreateUserRequest = {
     data: {
       email: string;
-      password: string;
+      passwordHash: string;
       name: string;
       surname: string;
       birthDate: Date;
-      age: number;
+      settings?: { create: Record<string, never> };
     };
   };
 
   type CreatedUser = CreateUserRequest['data'] & {
     id: number;
-    gender: null;
-    weightKg: null;
+    weight: null;
     heightCm: null;
     registrationDate: Date;
   };
@@ -45,8 +44,7 @@ describe('AuthService', () => {
       Promise.resolve({
         id: 1,
         ...request.data,
-        gender: null,
-        weightKg: null,
+        weight: null,
         heightCm: null,
         registrationDate: new Date('2026-01-01T00:00:00.000Z'),
       }),
@@ -95,7 +93,7 @@ describe('AuthService', () => {
         surname: 'Rossi',
         birthDate: '2000-06-15',
       }),
-    ).rejects.toMatchObject<Partial<ConflictException>>({
+    ).rejects.toMatchObject({
       response: {
         code: 'ACCOUNT_ALREADY_EXISTS',
         message: 'Account già registrato, effettua il login',
@@ -123,7 +121,7 @@ describe('AuthService', () => {
         surname: 'Rossi',
         birthDate: '2000-06-15',
       }),
-    ).rejects.toMatchObject<Partial<BadRequestException>>({
+    ).rejects.toMatchObject({
       response: {
         error: 'Bad Request',
         message:

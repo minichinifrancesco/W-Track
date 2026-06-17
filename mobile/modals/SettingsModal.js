@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import {
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   View,
   Text,
   TouchableOpacity,
@@ -9,6 +12,7 @@ import {
   TextInput,
   Switch,
   Alert,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useSettings, useEffectiveDark } from '../context/SettingsContext';
 import { COLORS } from '../constants';
@@ -30,6 +34,7 @@ export default function SettingsModal({ visible, onClose }) {
   const [restInput, setRestInput] = useState(String(settings.defaultRestTime));
 
   const handleRestInputBlur = () => {
+    Keyboard.dismiss();
     const val = parseInt(restInput, 10);
     if (!isNaN(val) && val >= 5 && val <= 600) {
       updateSetting('defaultRestTime', val);
@@ -40,23 +45,36 @@ export default function SettingsModal({ visible, onClose }) {
   };
 
   const handleRestPreset = (sec) => {
+    Keyboard.dismiss();
     updateSetting('defaultRestTime', sec);
     setRestInput(String(sec));
   };
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={[s.overlay, { backgroundColor: effectiveDark ? 'rgba(0,0,0,0.7)' : 'rgba(15,23,42,0.45)' }]}>
-        <View style={[s.sheet, { backgroundColor: C.card }]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={[s.overlay, { backgroundColor: effectiveDark ? 'rgba(0,0,0,0.7)' : 'rgba(15,23,42,0.45)' }]}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={[s.sheet, { backgroundColor: C.card }]}>
           {/* Header */}
           <View style={s.header}>
             <Text style={[s.title, { color: C.textDark }]}>⚙️  Impostazioni</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <TouchableOpacity
+              onPress={() => {
+                Keyboard.dismiss();
+                onClose();
+              }}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
               <Text style={{ fontSize: 20, color: C.muted, fontWeight: '600' }}>✕</Text>
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+            onScrollBeginDrag={Keyboard.dismiss}>
 
             {/* ── SEZIONE 1: Unità di peso ──────────────────────────────── */}
             <View style={[s.section, { borderColor: C.border }]}>
@@ -221,12 +239,16 @@ export default function SettingsModal({ visible, onClose }) {
 
           <TouchableOpacity
             style={[s.closeBtn, { backgroundColor: C.primary }]}
-            onPress={onClose}
+            onPress={() => {
+              Keyboard.dismiss();
+              onClose();
+            }}
           >
             <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Chiudi</Text>
           </TouchableOpacity>
-        </View>
-      </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

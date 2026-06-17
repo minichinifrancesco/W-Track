@@ -91,7 +91,7 @@ export default function ExerciseDescriptionModal({
           <View style={[styles.metaCard, { backgroundColor: cardBg, borderColor: borderColor }]}>
             <Text style={[styles.title, { color: textDark }]}>{exercise.name}</Text>
             <Text style={[styles.category, { color: categoryColor }]}>
-              {exercise.muscleGroup}{exercise.subcategory ? ` • ${exercise.subcategory}` : ''}
+              {exercise.muscleGroup}{exercise.equipmentType ? ` • ${exercise.equipmentType}` : ''}
             </Text>
 
             {/* Badges row */}

@@ -13,150 +13,228 @@ enum ExerciseSource {
 
 model User {
   id               Int      @id @default(autoincrement())
-  name             String
-  surname          String?
-  age              Int?
   email            String   @unique
-  password         String
-  registrationDate DateTime @default(now())
+  passwordHash     String   @map("password_hash")
+  name             String   @map("nome")
+  surname          String   @map("cognome")
+  birthDate        DateTime @map("data_nascita")
+  weight           Float?   @map("peso")
+  heightCm         Float?   @map("altezza_cm")
+  registrationDate DateTime @default(now()) @map("data_registrazione")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
-  gender           String?
-  birthDate        DateTime?
-  weightKg         Float?
-  heightCm         Float?
-
-  workoutPlans     WorkoutPlan[]
-  workouts         Workout[]
-  appData          UserAppData?
-  customExercises  Exercise[]
-
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  settings        UserSettings?
+  customExercises Exercise[]
+  workoutPlans    WorkoutPlan[]
+  workouts        Workout[]
+  badges          UserBadge[]
 
   @@map("users")
 }
 
-model UserAppData {
-  id        Int      @id @default(autoincrement())
-  workouts  String   @default("[]")
-  exercises String   @default("[]")
-  history   String   @default("[]")
-  badges    String   @default("[]")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model UserSettings {
+  id                   Int      @id @default(autoincrement())
+  userId               Int      @unique @map("user_id")
+  theme                String   @default("system") @map("tema")
+  preferredLoadUnit    String   @default("KG") @map("preferred_load_unit")
+  defaultRestSeconds   Int      @default(60) @map("tempo_recupero_default_secondi")
+  restTimerSound       Boolean  @default(true) @map("rest_timer_sound")
+  restTimerHaptic      Boolean  @default(true) @map("rest_timer_haptic")
+  exerciseNotesEnabled Boolean  @default(true) @map("note_esercizi_abilitate")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
-  userId Int  @unique
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("user_app_data")
+  @@map("user_settings")
+}
+
+model Exercise {
+  id            Int            @id @default(autoincrement())
+  name          String         @map("nome")
+  description   String?        @map("descrizione")
+  muscleGroup   String         @map("gruppo_muscolare")
+  equipmentType String         @default("ALTRO") @map("tipo_attrezzatura")
+  trackingType  String         @map("tipo_tracciamento")
+  source        ExerciseSource @default(BASE) @map("origine")
+  userId        Int?           @map("user_id")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  user             User?                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planExercises    WorkoutPlanExercise[]
+  workoutExercises WorkoutExercise[]
+  badges           UserBadge[]
+
+  @@index([userId], map: "idx_exercises_user_id")
+  @@index([source], map: "idx_exercises_origine")
+  @@index([muscleGroup], map: "idx_exercises_gruppo_muscolare")
+  @@index([equipmentType], map: "idx_exercises_tipo_attrezzatura")
+  @@map("exercises")
 }
 
 model WorkoutPlan {
   id          Int      @id @default(autoincrement())
-  name        String
-  description String?
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  userId      Int      @map("user_id")
+  name        String   @map("nome")
+  description String?  @map("descrizione")
+  active      Boolean  @default(true) @map("attiva")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  userId      Int
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercises WorkoutPlanExercise[]
+  workouts  Workout[]
 
-  exercises   WorkoutPlanExercise[]
-  workouts    Workout[]
-
-  @@index([userId])
+  @@index([userId], map: "idx_workout_plans_user_id")
+  @@index([userId, active], map: "idx_workout_plans_user_attiva")
   @@map("workout_plans")
 }
 
-model Exercise {
-  id           Int          @id @default(autoincrement())
-  name         String
-  description  String?
-  muscleGroup  String
-  subcategory  String?
-  trackingType String       @default("weight_reps")
-  source       ExerciseSource @default(BASE) @map("type")
-
-  userId       Int?
-  user         User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  planExercises WorkoutPlanExercise[]
-
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-
-  @@index([source])
-  @@index([userId])
-  @@map("exercises")
-}
-
 model WorkoutPlanExercise {
-  id          Int @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
+  planId      Int      @map("workout_plan_id")
+  exerciseId  Int      @map("exercise_id")
+  order       Int      @map("ordine")
+  note        String?
+  restSeconds Int      @default(60) @map("tempo_recupero_secondi")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  order       Int
-  setsNumber  Int
-  repsNumber  Int
-  restSeconds Int @default(60)
+  plan        WorkoutPlan  @relation(fields: [planId], references: [id], onDelete: Cascade)
+  exercise    Exercise     @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  plannedSets PlannedSet[]
 
-  workoutPlanId Int
-  workoutPlan   WorkoutPlan @relation(fields: [workoutPlanId], references: [id], onDelete: Cascade)
-
-  exerciseId Int
-  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
-
-  executedSets ExecutedSet[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([workoutPlanId])
-  @@index([exerciseId])
+  @@unique([planId, order], map: "workout_plan_exercises_workout_plan_id_ordine_key")
+  @@index([planId], map: "idx_workout_plan_exercises_plan_id")
+  @@index([exerciseId], map: "idx_workout_plan_exercises_exercise_id")
   @@map("workout_plan_exercises")
 }
 
+model PlannedSet {
+  id             Int      @id @default(autoincrement())
+  planExerciseId Int      @map("workout_plan_exercise_id")
+  setNumber      Int      @map("numero_serie")
+  targetLoad     Float?   @map("carico_target")
+  targetReps     Int?     @map("ripetizioni_target")
+  targetDuration Int?     @map("durata_target_secondi")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  planExercise WorkoutPlanExercise @relation(fields: [planExerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([planExerciseId, setNumber], map: "planned_sets_workout_plan_exercise_id_numero_serie_key")
+  @@index([planExerciseId], map: "idx_planned_sets_plan_exercise_id")
+  @@map("planned_sets")
+}
+
 model Workout {
-  id          Int      @id @default(autoincrement())
-  date        DateTime @default(now())
-  startTime   DateTime @default(now())
-  endTime     DateTime?
-  completed   Boolean  @default(false)
-  paused      Boolean  @default(false)
-  notes       String?
+  id              Int       @id @default(autoincrement())
+  userId          Int       @map("user_id")
+  planId          Int?      @map("workout_plan_id")
+  nameSnapshot    String    @map("nome_snapshot")
+  startedAt       DateTime  @map("ora_inizio")
+  endedAt         DateTime? @map("ora_fine")
+  durationSeconds Int       @default(0) @map("durata_secondi")
+  completed       Boolean   @default(false) @map("completato")
+  generalNote     String?   @map("note_generali")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  userId      Int
-  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan      WorkoutPlan?      @relation(fields: [planId], references: [id], onDelete: SetNull)
+  exercises WorkoutExercise[]
+  badges    UserBadge[]
 
-  workoutPlanId Int
-  workoutPlan   WorkoutPlan @relation(fields: [workoutPlanId], references: [id], onDelete: Restrict)
-
-  executedSets ExecutedSet[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@index([workoutPlanId])
+  @@index([userId], map: "idx_workouts_user_id")
+  @@index([planId], map: "idx_workouts_plan_id")
+  @@index([startedAt], map: "idx_workouts_ora_inizio")
+  @@index([userId, startedAt], map: "idx_workouts_user_ora_inizio")
   @@map("workouts")
 }
 
+model WorkoutExercise {
+  id                   Int      @id @default(autoincrement())
+  workoutId            Int      @map("workout_id")
+  exerciseId           Int?     @map("exercise_id")
+  nameSnapshot         String   @map("nome_snapshot")
+  muscleGroupSnapshot  String   @map("gruppo_muscolare_snapshot")
+  trackingTypeSnapshot String   @map("tipo_tracciamento_snapshot")
+  order                Int      @map("ordine")
+  note                 String?
+  restSeconds          Int      @default(60) @map("tempo_recupero_secondi")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  workout      Workout       @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exercise     Exercise?     @relation(fields: [exerciseId], references: [id], onDelete: SetNull)
+  executedSets ExecutedSet[]
+  badges       UserBadge[]
+
+  @@unique([workoutId, order], map: "workout_exercises_workout_id_ordine_key")
+  @@index([workoutId], map: "idx_workout_exercises_workout_id")
+  @@index([exerciseId], map: "idx_workout_exercises_exercise_id")
+  @@map("workout_exercises")
+}
+
 model ExecutedSet {
-  id          Int    @id @default(autoincrement())
-  setNumber   Int
-  repsDone    Int
-  weightKg    Float?
-  notes       String?
+  id                Int      @id @default(autoincrement())
+  workoutExerciseId Int      @map("workout_exercise_id")
+  setNumber         Int      @map("numero_serie")
+  load              Float?   @map("carico")
+  reps              Int?     @map("ripetizioni")
+  durationSeconds   Int?     @map("durata_secondi")
+  completed         Boolean  @default(false) @map("completata")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
-  workoutId   Int
-  workout     Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  workoutExercise WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+  badges          UserBadge[]
 
-  workoutPlanExerciseId Int
-  workoutPlanExercise   WorkoutPlanExercise @relation(fields: [workoutPlanExerciseId], references: [id], onDelete: Restrict)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([workoutId])
-  @@index([workoutPlanExerciseId])
+  @@unique([workoutExerciseId, setNumber], map: "executed_sets_workout_exercise_id_numero_serie_key")
+  @@index([workoutExerciseId], map: "idx_executed_sets_workout_exercise_id")
   @@map("executed_sets")
+}
+
+model BadgeDefinition {
+  id          Int     @id @default(autoincrement())
+  code        String  @unique @map("codice")
+  name        String  @map("nome")
+  description String? @map("descrizione")
+  icon        String? @map("icona")
+  category    String? @map("categoria")
+
+  badges UserBadge[]
+
+  @@map("badge_definitions")
+}
+
+model UserBadge {
+  id                Int      @id @default(autoincrement())
+  userId            Int      @map("user_id")
+  badgeDefinitionId Int      @map("badge_definition_id")
+  exerciseId        Int?     @map("exercise_id")
+  workoutId         Int?     @map("workout_id")
+  workoutExerciseId Int?     @map("workout_exercise_id")
+  executedSetId     Int?     @map("executed_set_id")
+  value             Float?   @map("valore")
+  earnedAt          DateTime @default(now()) @map("ottenuto_il")
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeDefinition BadgeDefinition  @relation(fields: [badgeDefinitionId], references: [id], onDelete: Restrict)
+  exercise        Exercise?        @relation(fields: [exerciseId], references: [id], onDelete: SetNull)
+  workout         Workout?         @relation(fields: [workoutId], references: [id], onDelete: SetNull)
+  workoutExercise WorkoutExercise? @relation(fields: [workoutExerciseId], references: [id], onDelete: SetNull)
+  executedSet     ExecutedSet?     @relation(fields: [executedSetId], references: [id], onDelete: SetNull)
+
+  @@index([userId], map: "idx_user_badges_user_id")
+  @@index([badgeDefinitionId], map: "idx_user_badges_definition_id")
+  @@index([exerciseId], map: "idx_user_badges_exercise_id")
+  @@index([workoutId], map: "idx_user_badges_workout_id")
+  @@index([workoutExerciseId], map: "idx_user_badges_workout_exercise_id")
+  @@index([executedSetId], map: "idx_user_badges_executed_set_id")
+  @@index([earnedAt], map: "idx_user_badges_ottenuto_il")
+  @@index([userId, earnedAt], map: "idx_user_badges_user_ottenuto_il")
+  @@map("user_badges")
 }

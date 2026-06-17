@@ -36,8 +36,8 @@ export class ExercisesController {
     body: {
       name?: string;
       muscleGroup?: string;
+      equipmentType?: string | null;
       type?: string;
-      subcategory?: string | null;
       description?: string | null;
     },
   ) {
