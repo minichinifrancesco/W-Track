@@ -7,6 +7,7 @@ CREATE TABLE users (
   nome TEXT NOT NULL,
   cognome TEXT NOT NULL,
   data_nascita DATETIME NOT NULL,
+  genere TEXT NOT NULL DEFAULT 'NON_SPECIFICATO',
   peso REAL,
   altezza_cm REAL,
   data_registrazione DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -14,7 +15,8 @@ CREATE TABLE users (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   CHECK (peso IS NULL OR peso >= 0),
-  CHECK (altezza_cm IS NULL OR altezza_cm >= 0)
+  CHECK (altezza_cm IS NULL OR altezza_cm >= 0),
+  CHECK (genere IN ('MASCHIO', 'FEMMINA', 'NON_SPECIFICATO'))
 );
 
 CREATE TABLE user_settings (

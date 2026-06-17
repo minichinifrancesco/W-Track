@@ -18,6 +18,7 @@ model User {
   name             String   @map("nome")
   surname          String   @map("cognome")
   birthDate        DateTime @map("data_nascita")
+  gender           String   @default("NON_SPECIFICATO") @map("genere")
   weight           Float?   @map("peso")
   heightCm         Float?   @map("altezza_cm")
   registrationDate DateTime @default(now()) @map("data_registrazione")

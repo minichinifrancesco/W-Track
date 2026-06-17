@@ -10,6 +10,7 @@ describe('AuthService', () => {
       name: string;
       surname: string;
       birthDate: Date;
+      gender: string;
       settings?: { create: Record<string, never> };
     };
   };
@@ -57,14 +58,17 @@ describe('AuthService', () => {
       password: 'Secret1!',
       name: 'Mario',
       surname: 'Rossi',
-      birthDate: '2000-06-15',
-    });
+        birthDate: '2000-06-15',
+        gender: 'MASCHIO',
+      });
 
     const createRequest = createUser.mock.calls[0]?.[0];
     expect(createRequest?.data.email).toBe('test@example.com');
     expect(createRequest?.data.birthDate).toEqual(
       new Date('2000-06-15T00:00:00.000Z'),
     );
+    expect(createRequest?.data.gender).toBe('MASCHIO');
+    expect(response.user.gender).toBe('MASCHIO');
     expect(response.user.birthDate).toEqual(
       new Date('2000-06-15T00:00:00.000Z'),
     );
@@ -78,6 +82,7 @@ describe('AuthService', () => {
         name: 'Mario',
         surname: 'Rossi',
         birthDate: '2000-02-31',
+        gender: 'NON_SPECIFICATO',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
@@ -92,6 +97,7 @@ describe('AuthService', () => {
         name: 'Mario',
         surname: 'Rossi',
         birthDate: '2000-06-15',
+        gender: 'NON_SPECIFICATO',
       }),
     ).rejects.toMatchObject({
       response: {
@@ -120,6 +126,7 @@ describe('AuthService', () => {
         name: 'Mario',
         surname: 'Rossi',
         birthDate: '2000-06-15',
+        gender: 'NON_SPECIFICATO',
       }),
     ).rejects.toMatchObject({
       response: {

@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -42,6 +43,19 @@ export class ExercisesController {
     },
   ) {
     return this.exercisesService.createCustom(request.user, body);
+  }
+
+  @UseGuards(AuthGuard)
+  @Patch(':id')
+  updateCustom(
+    @Req() request: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) id: number,
+    @Body()
+    body: {
+      name?: string;
+    },
+  ) {
+    return this.exercisesService.updateCustom(request.user, id, body);
   }
 
   @UseGuards(AuthGuard)

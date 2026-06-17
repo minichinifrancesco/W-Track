@@ -7,7 +7,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useEffectiveDark } from '../context/SettingsContext';
+import { useEffectiveDark, useSettings } from '../context/SettingsContext';
 import {
   PROGRESS_METRICS,
   PROGRESS_RANGES,
@@ -20,9 +20,11 @@ const LEFT_PAD = 38;
 const RIGHT_PAD = 14;
 const TOP_PAD = 16;
 const BOTTOM_PAD = 28;
+const WEIGHT_METRIC_IDS = new Set(['maxWeight', 'bestSet', 'volume', 'oneRm']);
 
 export default function ExerciseProgressChart({ exercise, history = [] }) {
   const isDark = useEffectiveDark();
+  const { settings, convertWeight } = useSettings();
   const [rangeId, setRangeId] = useState('6m');
   const [selectedMetricIds, setSelectedMetricIds] = useState(
     exercise?.type === 'reps' ? ['maxReps'] : ['maxWeight']
@@ -67,9 +69,22 @@ export default function ExerciseProgressChart({ exercise, history = [] }) {
   const plotWidth = Math.max(220, chartWidth - LEFT_PAD - RIGHT_PAD);
   const plotHeight = CHART_HEIGHT - TOP_PAD - BOTTOM_PAD;
 
+  const getDisplayMetricValue = useCallback((value, metricId) => {
+    const numericValue = Number(value) || 0;
+    return WEIGHT_METRIC_IDS.has(metricId) ? convertWeight(numericValue) : numericValue;
+  }, [convertWeight]);
+
+  const getMetricUnit = useCallback((metric) => {
+    if (!metric.unit) return '';
+    if (!WEIGHT_METRIC_IDS.has(metric.id)) return metric.unit;
+    return metric.id === 'bestSet' || metric.id === 'volume'
+      ? `${settings.weightUnit} x rep`
+      : settings.weightUnit;
+  }, [settings.weightUnit]);
+
   const { yMin, yMax, hasEnoughData } = useMemo(() => {
     const values = data.flatMap((item) =>
-      selectedMetrics.map((metric) => Number(item[metric.id]) || 0)
+      selectedMetrics.map((metric) => getDisplayMetricValue(item[metric.id], metric.id))
     );
     const maxValue = Math.max(...values, 0);
     const minValue = Math.min(...values.filter((value) => value > 0), 0);
@@ -77,20 +92,22 @@ export default function ExerciseProgressChart({ exercise, history = [] }) {
     const calculatedYMax = maxValue === calculatedYMin ? maxValue + 1 : maxValue;
     const enoughData = data.length >= 2 && maxValue > 0;
     return { yMin: calculatedYMin, yMax: calculatedYMax, hasEnoughData: enoughData };
-  }, [data, selectedMetrics]);
+  }, [data, getDisplayMetricValue, selectedMetrics]);
 
   const getPoint = useCallback((item, index, metricId) => {
-    const value = Number(item[metricId]) || 0;
+    const value = getDisplayMetricValue(item[metricId], metricId);
     const x = LEFT_PAD + (data.length === 1 ? plotWidth / 2 : (index / (data.length - 1)) * plotWidth);
     const ratio = yMax === yMin ? 0.5 : (value - yMin) / (yMax - yMin);
     const y = TOP_PAD + plotHeight - ratio * plotHeight;
     return { x, y, value };
-  }, [data.length, plotWidth, plotHeight, yMin, yMax]);
+  }, [data.length, getDisplayMetricValue, plotWidth, plotHeight, yMin, yMax]);
 
   const formatValue = useCallback((value, metric) => {
-    const rounded = Math.round(value * 10) / 10;
-    return `${rounded}${metric.unit ? ` ${metric.unit}` : ''}`;
-  }, []);
+    const displayValue = getDisplayMetricValue(value, metric.id);
+    const rounded = Math.round(displayValue * 10) / 10;
+    const unit = getMetricUnit(metric);
+    return `${rounded}${unit ? ` ${unit}` : ''}`;
+  }, [getDisplayMetricValue, getMetricUnit]);
 
   const formatDate = useCallback((date) =>
     new Date(date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }), []);

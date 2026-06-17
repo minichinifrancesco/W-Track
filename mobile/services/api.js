@@ -130,6 +130,14 @@ export function createCustomExercise(token, exercise) {
   });
 }
 
+export function updateCustomExercise(token, exerciseId, exercise) {
+  return request(`/exercises/${exerciseId}`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify(exercise),
+  });
+}
+
 export function deleteCustomExercise(token, exerciseId) {
   return request(`/exercises/${exerciseId}`, {
     method: 'DELETE',

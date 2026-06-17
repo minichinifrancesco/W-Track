@@ -10,16 +10,23 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
 } from 'react-native';
-import { useEffectiveDark } from '../context/SettingsContext';
+import { useEffectiveDark, useSettings } from '../context/SettingsContext';
 import { getStyles, getThemeColors } from '../styles/styles';
+import DraftTextInput from '../components/DraftTextInput';
+
+const GENDER_OPTIONS = [
+  { value: 'MASCHIO', label: 'Maschio' },
+  { value: 'FEMMINA', label: 'Femmina' },
+  { value: 'NON_SPECIFICATO', label: 'Non specificato' },
+];
 
 export default function EditProfileModal({
   showEditProfileModal,
   setShowEditProfileModal,
   profileName,
   setProfileName,
-  profileAge,
-  setProfileAge,
+  profileGender,
+  setProfileGender,
   profileHeight,
   setProfileHeight,
   profileWeight,
@@ -27,6 +34,7 @@ export default function EditProfileModal({
   saveProfile,
 }) {
   const isDarkMode = useEffectiveDark();
+  const { settings, convertWeight, toKg } = useSettings();
   const styles = getStyles(isDarkMode);
   const C = getThemeColors(isDarkMode);
 
@@ -49,16 +57,44 @@ export default function EditProfileModal({
               onSubmitEditing={Keyboard.dismiss}
             />
 
-            <TextInput
-              style={styles.input}
-              placeholder="Età"
-              placeholderTextColor={C.textMuted}
-              value={profileAge}
-              onChangeText={setProfileAge}
-              keyboardType="numeric"
-              returnKeyType="done"
-              onSubmitEditing={Keyboard.dismiss}
-            />
+            <Text style={{ color: C.textDark, fontSize: 14, fontWeight: '700', marginBottom: 8 }}>
+              Genere
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+              {GENDER_OPTIONS.map((option) => {
+                const isSelected = profileGender === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      paddingHorizontal: 8,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: isSelected ? '#86B749' : C.border,
+                      backgroundColor: isSelected ? '#86B749' : C.card,
+                      alignItems: 'center',
+                    }}
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      setProfileGender(option.value);
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: isSelected ? '#ffffff' : C.textDark,
+                        fontSize: 12,
+                        fontWeight: '700',
+                        textAlign: 'center',
+                      }}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
             <TextInput
               style={styles.input}
@@ -71,12 +107,14 @@ export default function EditProfileModal({
               onSubmitEditing={Keyboard.dismiss}
             />
 
-            <TextInput
+            <DraftTextInput
               style={styles.input}
-              placeholder="Peso (kg)"
+              placeholder={`Peso (${settings.weightUnit})`}
               placeholderTextColor={C.textMuted}
-              value={profileWeight}
-              onChangeText={setProfileWeight}
+              value={convertWeight(profileWeight)}
+              fallback=""
+              normalizeOnCommit={(value) => (value === '' ? '' : value)}
+              onCommit={(value) => setProfileWeight(value === '' ? '' : String(toKg(value)))}
               keyboardType="decimal-pad"
               returnKeyType="done"
               onSubmitEditing={Keyboard.dismiss}

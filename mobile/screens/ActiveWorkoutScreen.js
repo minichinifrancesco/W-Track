@@ -74,7 +74,7 @@ export default function ActiveWorkoutScreen({
   setReplaceTargetExerciseId,
 }) {
   const isDarkMode = useEffectiveDark();
-  const { settings } = useSettings();
+  const { settings, convertWeight, toKg } = useSettings();
   const styles = getStyles(isDarkMode);
   const [showStats, setShowStats] = useState(false);
 
@@ -442,7 +442,7 @@ export default function ActiveWorkoutScreen({
                     <>
                       <View style={styles.setHeaderRow}>
                         <Text style={styles.setHeaderText}>Serie</Text>
-                        <Text style={styles.setHeaderText}>Kg</Text>
+                        <Text style={styles.setHeaderText}>{settings.weightUnit.toUpperCase()}</Text>
                         <Text style={styles.setHeaderText}>Reps</Text>
                         <Text style={styles.setHeaderText}>✓</Text>
                       </View>
@@ -467,10 +467,10 @@ export default function ActiveWorkoutScreen({
                               style={styles.setCellInput}
                               keyboardType="decimal-pad"
                               returnKeyType="done"
-                              value={sd.weight}
+                              value={convertWeight(sd.weight)}
                               fallback={0}
                               normalizeOnCommit={normalizeNumberInput}
-                              onCommit={(t) => updateSetDetail(ex.id, setIndex, 'weight', t)}
+                              onCommit={(t) => updateSetDetail(ex.id, setIndex, 'weight', toKg(t))}
                               onSubmitEditing={Keyboard.dismiss}
                             />
                             <DraftTextInput

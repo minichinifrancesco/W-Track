@@ -1,20 +1,20 @@
 import React from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { useEffectiveDark } from '../context/SettingsContext';
+import { useEffectiveDark, useSettings } from '../context/SettingsContext';
 import { getStyles } from '../styles/styles';
 
 const isTimedExercise = (type) =>
   type === 'timed' || type === 'time' || type === 'plank' || type === 'cardio';
 const isRepsOnlyExercise = (type) => type === 'reps' || type === 'REPS';
 
-const formatSetDetail = (exercise, set) => {
+const formatSetDetail = (exercise, set, formatWeight) => {
   if (isTimedExercise(exercise.type)) {
     return `${set.duration || 0} min`;
   }
   if (isRepsOnlyExercise(exercise.type)) {
     return `${set.reps || 0} reps`;
   }
-  return `${set.reps || 0} reps @ ${set.weight || 0}kg`;
+  return `${set.reps || 0} reps @ ${formatWeight(set.weight || 0)}`;
 };
 
 const getSetDetails = (exercise) => {
@@ -36,6 +36,7 @@ export default function ViewWorkoutModal({
   selectedWorkout,
 }) {
   const isDarkMode = useEffectiveDark();
+  const { formatWeight } = useSettings();
   const styles = getStyles(isDarkMode);
   if (!selectedWorkout) return null;
 
@@ -64,7 +65,7 @@ export default function ViewWorkoutModal({
                     ) : (
                       setDetails.map((set, index) => (
                         <Text key={index} style={styles.viewExerciseDetails}>
-                          Serie {index + 1}: {formatSetDetail(ex, set)}
+                          Serie {index + 1}: {formatSetDetail(ex, set, formatWeight)}
                         </Text>
                       ))
                     )}

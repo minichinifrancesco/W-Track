@@ -11,7 +11,7 @@ import {
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useEffectiveDark } from '../context/SettingsContext';
+import { useEffectiveDark, useSettings } from '../context/SettingsContext';
 import { getStyles } from '../styles/styles';
 import { getBadgeDefinition } from '../utils/progress';
 
@@ -19,14 +19,14 @@ const isTimedExercise = (type) =>
   type === 'timed' || type === 'time' || type === 'plank' || type === 'cardio';
 const isRepsOnlyExercise = (type) => type === 'reps' || type === 'REPS';
 
-const formatSetDetail = (exercise, set) => {
+const formatSetDetail = (exercise, set, formatWeight) => {
   if (isTimedExercise(exercise.type)) {
     return `${set.duration || 0} min`;
   }
   if (isRepsOnlyExercise(exercise.type)) {
     return `${set.reps || 0} reps`;
   }
-  return `${set.reps || 0} reps @ ${set.weight || 0}kg`;
+  return `${set.reps || 0} reps @ ${formatWeight(set.weight || 0)}`;
 };
 
 const getBadgeLabel = (definition, compact) => {
@@ -45,6 +45,7 @@ export default function HistoryDetailModal({
   updateHistoryGeneralNote,
 }) {
   const isDarkMode = useEffectiveDark();
+  const { formatWeight } = useSettings();
   const styles = getStyles(isDarkMode);
   
   // Local state for immediate responsiveness
@@ -182,7 +183,7 @@ export default function HistoryDetailModal({
                         marginBottom: 4,
                       }}>
                       <Text style={styles.viewExerciseDetails}>
-                        Serie {idx + 1}: {formatSetDetail(ex, sd)}{' '}
+                        Serie {idx + 1}: {formatSetDetail(ex, sd, formatWeight)}{' '}
                         {sd.completed ? '✓' : ''}
                       </Text>
                       {(sd.badges || []).map((badge) =>

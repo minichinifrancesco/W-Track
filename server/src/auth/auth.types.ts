@@ -3,6 +3,7 @@ export type PublicUser = {
   email: string;
   name: string;
   surname: string;
+  gender: string;
   age: number | null;
   birthDate: Date | null;
   weight: number | null;

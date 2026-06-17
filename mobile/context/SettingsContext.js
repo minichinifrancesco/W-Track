@@ -20,6 +20,7 @@ export const SettingsContext = createContext({
   loadSettings: async () => {},
   clearSettings: () => {},
   convertWeight: (v) => v,
+  toKg: (v) => v,
   formatWeight: (v) => `${v} kg`,
 });
 
@@ -65,19 +66,21 @@ export function SettingsProvider({ children }) {
   };
 
   // Convert a weight value FROM kg TO display unit
+  const parseWeightValue = (value) => parseFloat(String(value || 0).replace(',', '.')) || 0;
+
   const convertWeight = (kgValue) => {
     if (settings.weightUnit === 'lbs') {
-      return Math.round(parseFloat(kgValue || 0) * 2.20462 * 10) / 10;
+      return Math.round(parseWeightValue(kgValue) * 2.20462 * 10) / 10;
     }
-    return parseFloat(kgValue || 0);
+    return parseWeightValue(kgValue);
   };
 
   // Convert a weight value FROM display unit TO kg (for storage)
   const toKg = (displayValue) => {
     if (settings.weightUnit === 'lbs') {
-      return Math.round((parseFloat(displayValue || 0) / 2.20462) * 10) / 10;
+      return Math.round((parseWeightValue(displayValue) / 2.20462) * 10) / 10;
     }
-    return parseFloat(displayValue || 0);
+    return parseWeightValue(displayValue);
   };
 
   const formatWeight = (kgValue) => {

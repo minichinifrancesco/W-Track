@@ -12,7 +12,6 @@ import {
   TextInput,
   Switch,
   Alert,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import { useSettings, useEffectiveDark } from '../context/SettingsContext';
 import { COLORS } from '../constants';
@@ -55,8 +54,7 @@ export default function SettingsModal({ visible, onClose }) {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={[s.overlay, { backgroundColor: effectiveDark ? 'rgba(0,0,0,0.7)' : 'rgba(15,23,42,0.45)' }]}>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <View style={[s.sheet, { backgroundColor: C.card }]}>
+        <View style={[s.sheet, { backgroundColor: C.card }]}>
           {/* Header */}
           <View style={s.header}>
             <Text style={[s.title, { color: C.textDark }]}>⚙️  Impostazioni</Text>
@@ -71,7 +69,10 @@ export default function SettingsModal({ visible, onClose }) {
           </View>
 
           <ScrollView
+            style={s.scroll}
+            contentContainerStyle={s.scrollContent}
             showsVerticalScrollIndicator={false}
+            nestedScrollEnabled
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
             onScrollBeginDrag={Keyboard.dismiss}>
@@ -102,13 +103,6 @@ export default function SettingsModal({ visible, onClose }) {
                   );
                 })}
               </View>
-              {settings.weightUnit === 'lbs' && (
-                <View style={[s.infoBox, { backgroundColor: C.accentBg, borderColor: C.primary }]}>
-                  <Text style={{ color: C.primary, fontSize: 12 }}>
-                    ℹ️  I pesi inseriti vengono visualizzati in libbre. I dati sono salvati internamente in kg.
-                  </Text>
-                </View>
-              )}
             </View>
 
             {/* ── SEZIONE 2: Tema ───────────────────────────────────────── */}
@@ -246,8 +240,7 @@ export default function SettingsModal({ visible, onClose }) {
           >
             <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Chiudi</Text>
           </TouchableOpacity>
-          </View>
-        </TouchableWithoutFeedback>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -285,6 +278,13 @@ const s = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 32,
     maxHeight: '90%',
+    width: '100%',
+  },
+  scroll: {
+    flexShrink: 1,
+  },
+  scrollContent: {
+    paddingBottom: 8,
   },
   header: {
     flexDirection: 'row',

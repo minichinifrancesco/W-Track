@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useEffectiveDark } from '../context/SettingsContext';
+import { useEffectiveDark, useSettings } from '../context/SettingsContext';
 import { logoCompact } from '../constants';
 import { getStyles } from '../styles/styles';
 import BottomNav from '../components/BottomNav';
@@ -37,6 +37,7 @@ export default function HomeScreen({
   activeWorkout,
 }) {
   const isDarkMode = useEffectiveDark();
+  const { formatWeight } = useSettings();
   const styles = getStyles(isDarkMode);
   const { width: windowWidth } = useWindowDimensions();
   const exportButtonRefs = useRef({});
@@ -80,12 +81,12 @@ export default function HomeScreen({
     try {
       if (format === 'pdf') {
         closeExportMenu();
-        await exportWorkoutAsPdf(workout);
+        await exportWorkoutAsPdf(workout, formatWeight);
         return;
       }
 
       closeExportMenu();
-      await exportWorkoutAsText(workout);
+      await exportWorkoutAsText(workout, formatWeight);
     } catch (error) {
       Alert.alert(
         'Export non riuscito',

@@ -1,12 +1,13 @@
 import React from 'react';
 import { Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useEffectiveDark } from '../context/SettingsContext';
+import { useEffectiveDark, useSettings } from '../context/SettingsContext';
 import { getStyles } from '../styles/styles';
 import { getBadgeDefinition } from '../utils/progress';
 
 export default function BadgesModal({ visible, onClose, badges = [] }) {
   const isDarkMode = useEffectiveDark();
+  const { settings, convertWeight, formatWeight } = useSettings();
   const styles = getStyles(isDarkMode);
 
   const colors = {
@@ -72,11 +73,11 @@ export default function BadgesModal({ visible, onClose, badges = [] }) {
               {badge.value !== undefined && badge.value !== null ? (
                 ` • ${
                   badge.definitionId === 'PR_WEIGHT'
-                    ? `${badge.value} kg`
+                    ? formatWeight(badge.value)
                     : badge.definitionId === 'PR_REPS'
                     ? `${badge.value} rep`
                     : badge.definitionId === 'PR_VOLUME'
-                    ? `${badge.value} kg (Volume)`
+                    ? `${convertWeight(badge.value)} ${settings.weightUnit} x rep (Volume)`
                     : badge.value
                 }`
               ) : ''}

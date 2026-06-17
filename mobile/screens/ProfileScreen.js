@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Alert, SafeAreaView, View, Image, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { useEffectiveDark } from '../context/SettingsContext';
+import { useEffectiveDark, useSettings } from '../context/SettingsContext';
 import { logoCompact } from '../constants';
 import { getStyles } from '../styles/styles';
 import BottomNav from '../components/BottomNav';
@@ -14,6 +14,7 @@ export default function ProfileScreen({
   profileName,
   profileSurname,
   profileBirthDate,
+  profileGender,
   profileAge,
   profileHeight,
   profileWeight,
@@ -28,6 +29,7 @@ export default function ProfileScreen({
   handleLogout,
 }) {
   const isDarkMode = useEffectiveDark();
+  const { formatWeight } = useSettings();
   const styles = getStyles(isDarkMode);
   const [showSettings, setShowSettings] = useState(false);
   const [showBadges, setShowBadges] = useState(false);
@@ -60,6 +62,12 @@ export default function ProfileScreen({
   const profileInitial = (profileName || profileSurname || user?.email || 'U')
     .charAt(0)
     .toUpperCase();
+  const genderLabel =
+    {
+      MASCHIO: 'Maschio',
+      FEMMINA: 'Femmina',
+      NON_SPECIFICATO: 'Non specificato',
+    }[profileGender || user?.gender] || 'Non specificato';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -150,8 +158,15 @@ export default function ProfileScreen({
             <View style={styles.profileInfoItem}>
               <Text style={styles.profileInfoLabel}>Peso</Text>
               <Text style={styles.profileInfoValue}>
-                {profileWeight ? `${profileWeight} kg` : '-'}
+                {profileWeight ? formatWeight(profileWeight) : '-'}
               </Text>
+            </View>
+          </View>
+
+          <View style={styles.profileInfoRow}>
+            <View style={styles.profileInfoItem}>
+              <Text style={styles.profileInfoLabel}>Genere</Text>
+              <Text style={styles.profileInfoValue}>{genderLabel}</Text>
             </View>
           </View>
         </View>

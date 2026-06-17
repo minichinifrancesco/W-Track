@@ -122,7 +122,7 @@ const HELP_CONTENT = {
       },
       {
         heading: 'Modifica serie',
-        body: 'Per ogni esercizio puoi modificare direttamente i valori nelle celle (kg, reps o minuti). Usa "+ Aggiungi serie" per inserire una riga aggiuntiva.',
+        body: 'Per ogni esercizio puoi modificare direttamente i valori nelle celle (peso nell\'unità scelta, reps o minuti). Usa "+ Aggiungi serie" per inserire una riga aggiuntiva.',
       },
       {
         heading: 'Elimina serie',
@@ -160,7 +160,7 @@ const HELP_CONTENT = {
       },
       {
         heading: 'Tipologia: Peso + Rip.',
-        body: 'Esercizi in cui si registrano sia il peso utilizzato (in kg) che le ripetizioni eseguite. Adatto a esercizi con bilanciere, manubri o macchine (es. panca, squat, stacchi).',
+        body: 'Esercizi in cui si registrano sia il peso utilizzato che le ripetizioni eseguite. Adatto a esercizi con bilanciere, manubri o macchine (es. panca, squat, stacchi).',
       },
       {
         heading: 'Tipologia: Ripetizioni',

@@ -36,6 +36,7 @@ const EQUIPMENT_OPTIONS = [
 const ExerciseRow = React.memo(function ExerciseRow({
   exercise,
   onPress,
+  onRename,
   onDelete,
   themeColors,
   styles,
@@ -58,11 +59,18 @@ const ExerciseRow = React.memo(function ExerciseRow({
     return (
       <Swipeable
         renderRightActions={() => (
-          <TouchableOpacity
-            style={styles.deleteSetSwipeButton}
-            onPress={onDelete}>
-            <Text style={styles.deleteSetSwipeText}>Elimina</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', height: '100%' }}>
+            <TouchableOpacity
+              style={[styles.deleteSetSwipeButton, { backgroundColor: '#86B749' }]}
+              onPress={onRename}>
+              <Text style={styles.deleteSetSwipeText}>Rinomina</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.deleteSetSwipeButton}
+              onPress={onDelete}>
+              <Text style={styles.deleteSetSwipeText}>Elimina</Text>
+            </TouchableOpacity>
+          </View>
         )}>
         {item}
       </Swipeable>
@@ -74,6 +82,7 @@ const ExerciseRow = React.memo(function ExerciseRow({
 
 export default function ExercisesScreen({
   setShowCustomExercise,
+  openRenameCustomExercise,
   deleteCustomExercise,
   formatDate,
   currentScreen,
@@ -135,6 +144,11 @@ export default function ExercisesScreen({
     deleteCustomExercise(exId);
   }, [deleteCustomExercise]);
 
+  const handleRenameCustom = useCallback((exercise) => {
+    Keyboard.dismiss();
+    openRenameCustomExercise?.(exercise);
+  }, [openRenameCustomExercise]);
+
   const handleMuscleOpen = useCallback(() => {
     Keyboard.dismiss();
     setCloseEquipmentSignal((n) => n + 1);
@@ -153,12 +167,13 @@ export default function ExercisesScreen({
       <ExerciseRow
         exercise={item.data}
         onPress={() => handleOpenDescription(item.data)}
+        onRename={() => handleRenameCustom(item.data)}
         onDelete={() => handleDeleteCustom(item.data.id)}
         themeColors={C}
         styles={styles}
       />
     );
-  }, [styles, C, handleOpenDescription, handleDeleteCustom]);
+  }, [styles, C, handleOpenDescription, handleRenameCustom, handleDeleteCustom]);
 
   const listHeader = useMemo(() => {
     const borderColor = isDarkMode ? '#1e293b' : '#e5e7eb';

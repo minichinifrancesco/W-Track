@@ -16,6 +16,7 @@ export class AuthController {
       name?: string;
       surname?: string;
       birthDate?: string | Date | null;
+      gender?: string | null;
     },
   ) {
     return this.authService.register(body);
@@ -34,8 +35,7 @@ export class AuthController {
     body: {
       name?: string;
       surname?: string | null;
-      birthDate?: string | Date | null;
-      age?: number | string | null;
+      gender?: string | null;
       height?: number | string | null;
       weight?: number | string | null;
     },

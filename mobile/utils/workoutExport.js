@@ -4,6 +4,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
 const TIMED_TYPES = new Set(['timed', 'time', 'plank', 'cardio']);
+const REPS_ONLY_TYPES = new Set(['reps', 'REPS']);
 
 const sanitizeFileName = (value = 'scheda') => {
   const cleaned = value
@@ -42,21 +43,27 @@ const getExerciseSets = (exercise) => {
 };
 
 const isTimedExercise = (exercise) => TIMED_TYPES.has(exercise?.type);
+const isRepsOnlyExercise = (exercise) => REPS_ONLY_TYPES.has(exercise?.type);
 const getDurationValue = (exercise, setDetail) =>
   setDetail.duration ?? exercise.duration ?? 0;
 const formatMinutes = (value) => `${value || 0} min`;
+const defaultFormatWeight = (value) => `${value || 0} kg`;
 
-const formatSetText = (exercise, setDetail, index) => {
+const formatSetText = (exercise, setDetail, index, formatWeight = defaultFormatWeight) => {
   if (isTimedExercise(exercise)) {
     return `Serie ${index + 1}: ${formatMinutes(getDurationValue(exercise, setDetail))}`;
   }
 
   const reps = setDetail.reps ?? exercise.reps ?? 0;
+  if (isRepsOnlyExercise(exercise)) {
+    return `Serie ${index + 1}: ${reps} reps`;
+  }
+
   const weight = setDetail.weight ?? exercise.weight ?? 0;
-  return `Serie ${index + 1}: ${reps} reps @ ${weight}kg`;
+  return `Serie ${index + 1}: ${reps} reps @ ${formatWeight(weight)}`;
 };
 
-export const buildWorkoutText = (workout) => {
+export const buildWorkoutText = (workout, formatWeight = defaultFormatWeight) => {
   const exercises = workout?.exercises || [];
   const lines = [
     `Scheda: ${workout?.name || 'Senza nome'}`,
@@ -77,7 +84,7 @@ export const buildWorkoutText = (workout) => {
     }
 
     getExerciseSets(exercise).forEach((setDetail, setIndex) => {
-      lines.push(`- ${formatSetText(exercise, setDetail, setIndex)}`);
+      lines.push(`- ${formatSetText(exercise, setDetail, setIndex, formatWeight)}`);
     });
 
     if (exercise.restTime) {
@@ -94,12 +101,14 @@ export const buildWorkoutText = (workout) => {
   return lines.join('\n').trimEnd();
 };
 
-const buildSetRowsHtml = (exercise) =>
+const buildSetRowsHtml = (exercise, formatWeight = defaultFormatWeight) =>
   getExerciseSets(exercise)
     .map((setDetail, setIndex) => {
       const details = isTimedExercise(exercise)
         ? formatMinutes(getDurationValue(exercise, setDetail))
-        : `${setDetail.reps ?? exercise.reps ?? 0} reps @ ${setDetail.weight ?? exercise.weight ?? 0}kg`;
+        : isRepsOnlyExercise(exercise)
+          ? `${setDetail.reps ?? exercise.reps ?? 0} reps`
+          : `${setDetail.reps ?? exercise.reps ?? 0} reps @ ${formatWeight(setDetail.weight ?? exercise.weight ?? 0)}`;
 
       return `
         <tr>
@@ -110,7 +119,7 @@ const buildSetRowsHtml = (exercise) =>
     })
     .join('');
 
-const buildWorkoutHtml = (workout) => {
+const buildWorkoutHtml = (workout, formatWeight = defaultFormatWeight) => {
   const exercises = workout?.exercises || [];
   const exerciseBlocks = exercises.length
     ? exercises
@@ -131,7 +140,7 @@ const buildWorkoutHtml = (workout) => {
                   </tr>
                 </thead>
                 <tbody>
-                  ${buildSetRowsHtml(exercise)}
+                  ${buildSetRowsHtml(exercise, formatWeight)}
                 </tbody>
               </table>
               ${
@@ -237,8 +246,8 @@ const shareFile = async (uri, options) => {
   return uri;
 };
 
-export const exportWorkoutAsText = async (workout) => {
-  const content = buildWorkoutText(workout);
+export const exportWorkoutAsText = async (workout, formatWeight) => {
+  const content = buildWorkoutText(workout, formatWeight);
   const fileName = getWorkoutFileName(workout, 'txt');
 
   if (Platform.OS === 'web') {
@@ -259,8 +268,8 @@ export const exportWorkoutAsText = async (workout) => {
   });
 };
 
-export const exportWorkoutAsPdf = async (workout) => {
-  const html = buildWorkoutHtml(workout);
+export const exportWorkoutAsPdf = async (workout, formatWeight) => {
+  const html = buildWorkoutHtml(workout, formatWeight);
 
   if (Platform.OS === 'web') {
     await Print.printAsync({ html });

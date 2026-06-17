@@ -101,6 +101,49 @@ export class ExercisesService {
     return { ok: true };
   }
 
+  async updateCustom(
+    authUser: AuthUser,
+    exerciseId: number,
+    body: {
+      name?: string;
+    },
+  ) {
+    const name = this.normalizeRequired(body.name, 'Nome esercizio');
+
+    const existingExercise = await this.prisma.exercise.findFirst({
+      where: {
+        id: exerciseId,
+        userId: authUser.userId,
+        source: 'CUSTOM',
+      },
+    });
+
+    if (!existingExercise) {
+      throw new NotFoundException('Esercizio personalizzato non trovato');
+    }
+
+    const duplicate = await this.prisma.exercise.findFirst({
+      where: {
+        id: { not: exerciseId },
+        userId: authUser.userId,
+        source: 'CUSTOM',
+        name,
+        muscleGroup: existingExercise.muscleGroup,
+      },
+    });
+
+    if (duplicate) {
+      throw new ConflictException('Esercizio personalizzato gia esistente');
+    }
+
+    const exercise = await this.prisma.exercise.update({
+      where: { id: exerciseId },
+      data: { name },
+    });
+
+    return this.toClientExercise(exercise);
+  }
+
   private toClientExercise(exercise: {
     id: number;
     name: string;

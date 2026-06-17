@@ -11,9 +11,15 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
 } from 'react-native';
-import { useEffectiveDark } from '../context/SettingsContext';
+import { useEffectiveDark, useSettings } from '../context/SettingsContext';
 import { getStyles } from '../styles/styles';
 import { Ionicons } from '@expo/vector-icons';
+import DraftTextInput from '../components/DraftTextInput';
+
+const isTimedExercise = (type) =>
+  type === 'timed' || type === 'time' || type === 'plank' || type === 'cardio';
+const isRepsOnlyExercise = (type) => type === 'reps' || type === 'REPS';
+const normalizeNumberInput = (value) => (value === '' ? '0' : value);
 
 export default function EditHistoryModal({
   showEditHistoryModal,
@@ -25,6 +31,7 @@ export default function EditHistoryModal({
   formatWorkoutTime,
 }) {
   const isDarkMode = useEffectiveDark();
+  const { convertWeight, toKg } = useSettings();
   const styles = getStyles(isDarkMode);
   const [editingTime, setEditingTime] = useState(false);
   const [timeInput, setTimeInput] = useState('');
@@ -152,39 +159,55 @@ export default function EditHistoryModal({
                   <View key={idx} style={styles.historyEditSetRow}>
                     <Text style={styles.setCellSerie}>{idx + 1}</Text>
 
-                    {ex.type === 'timed' ||
-                    ex.type === 'time' ||
-                    ex.type === 'plank' ||
-                    ex.type === 'cardio' ? (
-                      <TextInput
+                    {isTimedExercise(ex.type) ? (
+                      <DraftTextInput
                         style={styles.historyEditInput}
                         keyboardType="numeric"
                         returnKeyType="done"
                         onSubmitEditing={Keyboard.dismiss}
-                        value={String(sd.duration || 0)}
-                        onChangeText={(text) =>
+                        value={sd.duration}
+                        fallback={0}
+                        normalizeOnCommit={normalizeNumberInput}
+                        onCommit={(text) =>
                           updateHistorySetDetail(ex.id, idx, 'duration', text)
+                        }
+                      />
+                    ) : isRepsOnlyExercise(ex.type) ? (
+                      <DraftTextInput
+                        style={styles.historyEditInput}
+                        keyboardType="numeric"
+                        returnKeyType="done"
+                        onSubmitEditing={Keyboard.dismiss}
+                        value={sd.reps}
+                        fallback={0}
+                        normalizeOnCommit={normalizeNumberInput}
+                        onCommit={(text) =>
+                          updateHistorySetDetail(ex.id, idx, 'reps', text)
                         }
                       />
                     ) : (
                       <>
-                        <TextInput
+                        <DraftTextInput
                           style={styles.historyEditInput}
                           keyboardType="decimal-pad"
                           returnKeyType="done"
                           onSubmitEditing={Keyboard.dismiss}
-                          value={String(sd.weight || 0)}
-                          onChangeText={(text) =>
-                            updateHistorySetDetail(ex.id, idx, 'weight', text)
+                          value={convertWeight(sd.weight)}
+                          fallback={0}
+                          normalizeOnCommit={normalizeNumberInput}
+                          onCommit={(text) =>
+                            updateHistorySetDetail(ex.id, idx, 'weight', toKg(text))
                           }
                         />
-                        <TextInput
+                        <DraftTextInput
                           style={styles.historyEditInput}
                           keyboardType="numeric"
                           returnKeyType="done"
                           onSubmitEditing={Keyboard.dismiss}
-                          value={String(sd.reps || 0)}
-                          onChangeText={(text) =>
+                          value={sd.reps}
+                          fallback={0}
+                          normalizeOnCommit={normalizeNumberInput}
+                          onCommit={(text) =>
                             updateHistorySetDetail(ex.id, idx, 'reps', text)
                           }
                         />

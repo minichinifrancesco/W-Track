@@ -38,7 +38,7 @@ export default function EditTemplateScreen({
   openExerciseDescription,
 }) {
   const isDarkMode = useEffectiveDark();
-  const { settings } = useSettings();
+  const { settings, convertWeight, toKg } = useSettings();
   const styles = getStyles(isDarkMode);
 
   if (!templateWorkout) return null;
@@ -236,7 +236,7 @@ export default function EditTemplateScreen({
                     <>
                       <View style={styles.setHeaderRow}>
                         <Text style={styles.setHeaderText}>Serie</Text>
-                        <Text style={styles.setHeaderText}>Kg</Text>
+                        <Text style={styles.setHeaderText}>{settings.weightUnit.toUpperCase()}</Text>
                         <Text style={styles.setHeaderText}>Reps</Text>
                       </View>
                       {(ex.setDetails || []).map((sd, setIndex) => (
@@ -255,11 +255,11 @@ export default function EditTemplateScreen({
                               style={styles.setCellInput}
                               keyboardType="decimal-pad"
                               returnKeyType="done"
-                              value={sd.weight}
+                              value={convertWeight(sd.weight)}
                               fallback={0}
                               normalizeOnCommit={normalizeNumberInput}
                               onCommit={(t) =>
-                                updateTemplateSetDetail(ex.id, setIndex, 'weight', t)
+                                updateTemplateSetDetail(ex.id, setIndex, 'weight', toKg(t))
                               }
                               onSubmitEditing={Keyboard.dismiss}
                             />

@@ -26,6 +26,7 @@ import {
   getUserData,
   login as loginRequest,
   register as registerRequest,
+  updateCustomExercise as updateCustomExerciseRequest,
   updateWorkoutPlan,
   updateWorkoutNotes,
   updateProfile,
@@ -44,6 +45,7 @@ import ProfileScreen from './screens/ProfileScreen';
 import CreateWorkoutModal from './modals/CreateWorkoutModal';
 import ViewWorkoutModal from './modals/ViewWorkoutModal';
 import CustomExerciseModal from './modals/CustomExerciseModal';
+import RenameCustomExerciseModal from './modals/RenameCustomExerciseModal';
 import RestTimeModal from './modals/RestTimeModal';
 import EditProfileModal from './modals/EditProfileModal';
 import HistoryDetailModal from './modals/HistoryDetailModal';
@@ -102,6 +104,13 @@ const showAuthError = (title, message) => {
   }
 
   Alert.alert(title, safeMessage);
+};
+
+const normalizeProfileGender = (value) => {
+  const normalized = String(value || 'NON_SPECIFICATO').toUpperCase();
+  return ['MASCHIO', 'FEMMINA', 'NON_SPECIFICATO'].includes(normalized)
+    ? normalized
+    : 'NON_SPECIFICATO';
 };
 
 const formatProfileDate = (value) => {
@@ -188,7 +197,7 @@ const FloatingWorkoutBar = React.memo(function FloatingWorkoutBar({
 
 function MainApp() {
   const isDarkMode = useEffectiveDark();
-  const { settings, loadSettings, clearSettings } = useSettings();
+  const { settings, loadSettings, clearSettings, formatWeight } = useSettings();
   const styles = getStyles(isDarkMode);
 
   const [currentScreen, setCurrentScreen] = useState('login');
@@ -215,6 +224,7 @@ function MainApp() {
   const [showCreateWorkout, setShowCreateWorkout] = useState(false);
   const [showViewWorkout, setShowViewWorkout] = useState(false);
   const [showCustomExercise, setShowCustomExercise] = useState(false);
+  const [showRenameCustomExercise, setShowRenameCustomExercise] = useState(false);
   const [showRestTimeModal, setShowRestTimeModal] = useState(false);
   const [showAddExerciseInSession, setShowAddExerciseInSession] =
     useState(false);
@@ -230,6 +240,7 @@ function MainApp() {
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
 
   const [selectedWorkout, setSelectedWorkout] = useState(null);
+  const [renamingCustomExercise, setRenamingCustomExercise] = useState(null);
   const [selectedHistoryRecord, setSelectedHistoryRecord] = useState(null);
   const [editingHistoryRecord, setEditingHistoryRecord] = useState(null);
 
@@ -248,6 +259,7 @@ function MainApp() {
   const [profileName, setProfileName] = useState('');
   const [profileSurname, setProfileSurname] = useState('');
   const [profileBirthDate, setProfileBirthDate] = useState('');
+  const [profileGender, setProfileGender] = useState('NON_SPECIFICATO');
   const [profileAge, setProfileAge] = useState('');
   const [profileHeight, setProfileHeight] = useState('');
   const [profileWeight, setProfileWeight] = useState('');
@@ -399,6 +411,7 @@ function MainApp() {
     setProfileName(targetUser?.name || '');
     setProfileSurname(targetUser?.surname || '');
     setProfileBirthDate(formatProfileDate(targetUser?.birthDate));
+    setProfileGender(normalizeProfileGender(targetUser?.gender));
     setProfileAge(targetUser?.age ? String(targetUser.age) : '');
     setProfileHeight(targetUser?.height ? String(targetUser.height) : '');
     setProfileWeight(targetUser?.weight ? String(targetUser.weight) : '');
@@ -526,6 +539,7 @@ function MainApp() {
     const registrationName = (registrationData?.name || '').trim();
     const registrationSurname = (registrationData?.surname || '').trim();
     const registrationBirthDate = registrationData?.birthDate;
+    const registrationGender = normalizeProfileGender(registrationData?.gender);
 
     if (
       !registrationEmail ||
@@ -557,6 +571,7 @@ function MainApp() {
         name: registrationName,
         surname: registrationSurname,
         birthDate: registrationBirthDate,
+        gender: registrationGender,
       });
       setEmail(registrationEmail);
       await completeAuth(authResponse);
@@ -585,6 +600,7 @@ function MainApp() {
     setProfileName('');
     setProfileSurname('');
     setProfileBirthDate('');
+    setProfileGender('NON_SPECIFICATO');
     setProfileAge('');
     setProfileHeight('');
     setProfileWeight('');
@@ -689,6 +705,58 @@ function MainApp() {
       );
     }
   };
+
+  const openRenameCustomExercise = useCallback((exercise) => {
+    if (!exercise?.custom) return;
+    setRenamingCustomExercise(exercise);
+    setShowRenameCustomExercise(true);
+  }, []);
+
+  const renameCustomExercise = useCallback(async (nextName) => {
+    const cleanedExName = String(nextName || '').trim();
+    const isOnlySpecialChars = /^[-\s!@#$%^&*()_+={}\[\]|\\:;"'<>,.?\/~`]+$/.test(cleanedExName);
+
+    if (!renamingCustomExercise?.id) {
+      setShowRenameCustomExercise(false);
+      return;
+    }
+
+    if (!cleanedExName) {
+      Alert.alert('Errore', 'Inserisci il nuovo nome dell\'esercizio');
+      return;
+    }
+
+    if (isOnlySpecialChars) {
+      Alert.alert(
+        'Errore',
+        'Il nome dell\'esercizio non può contenere solo caratteri speciali o trattini'
+      );
+      return;
+    }
+
+    if (!authToken) {
+      Alert.alert('Errore', 'Effettua il login per rinominare un esercizio');
+      return;
+    }
+
+    try {
+      await updateCustomExerciseRequest(authToken, renamingCustomExercise.id, {
+        name: cleanedExName,
+      });
+      const catalog = await loadExerciseCatalog(authToken);
+      await loadUserData(authToken, catalog);
+      setSelectedDescriptionExercise((prev) =>
+        prev?.id === renamingCustomExercise.id ? { ...prev, name: cleanedExName } : prev
+      );
+      setRenamingCustomExercise(null);
+      setShowRenameCustomExercise(false);
+    } catch (error) {
+      Alert.alert(
+        'Errore esercizio',
+        error.message || 'Rinomina esercizio non riuscita'
+      );
+    }
+  }, [authToken, renamingCustomExercise, loadExerciseCatalog, loadUserData]);
 
   const deleteCustomExercise = async (exerciseId) => {
     if (!authToken) {
@@ -983,10 +1051,10 @@ function MainApp() {
 
           if (weightAnomalous && repsAnomalous) {
             isAnomalous = true;
-            alertMsg = `Il peso (${currentWeight} kg) e le ripetizioni (${currentReps}) inseriti sono molto più alti rispetto a quelli precedenti (${prevWeight} kg, ${prevReps}). Sei sicuro che siano corretti?`;
+            alertMsg = `Il peso (${formatWeight(currentWeight)}) e le ripetizioni (${currentReps}) inseriti sono molto più alti rispetto a quelli precedenti (${formatWeight(prevWeight)}, ${prevReps}). Sei sicuro che siano corretti?`;
           } else if (weightAnomalous) {
             isAnomalous = true;
-            alertMsg = `Il peso inserito (${currentWeight} kg) è molto più alto rispetto a quello precedente (${prevWeight} kg). Sei sicuro che sia corretto?`;
+            alertMsg = `Il peso inserito (${formatWeight(currentWeight)}) è molto più alto rispetto a quello precedente (${formatWeight(prevWeight)}). Sei sicuro che sia corretto?`;
           } else if (repsAnomalous) {
             isAnomalous = true;
             alertMsg = `Le ripetizioni inserite (${currentReps}) sono molto più alte rispetto a quelle precedenti (${prevReps}). Sei sicuro che siano corrette?`;
@@ -1015,7 +1083,7 @@ function MainApp() {
     }
 
     performToggle();
-  }, [activeWorkout, history, startRestTimer]);
+  }, [activeWorkout, formatWeight, history, startRestTimer]);
 
   const applySetUpdate = useCallback((exerciseId, setIndex, field, parsedValue) => {
     setActiveWorkout((prev) => {
@@ -1589,16 +1657,16 @@ function MainApp() {
 
   const openProfileEdit = useCallback(() => {
     setProfileName(profileName || user?.name || '');
-    setProfileAge(profileAge || (user?.age ? String(user.age) : ''));
+    setProfileGender(normalizeProfileGender(profileGender || user?.gender));
     setProfileHeight(profileHeight || (user?.height ? String(user.height) : ''));
     setProfileWeight(profileWeight || (user?.weight ? String(user.weight) : ''));
     setShowEditProfileModal(true);
-  }, [profileName, profileAge, profileHeight, profileWeight, user]);
+  }, [profileName, profileGender, profileHeight, profileWeight, user]);
 
   const saveProfile = useCallback(async () => {
     const profile = {
       name: profileName.trim(),
-      age: profileAge ? parseInt(profileAge, 10) : null,
+      gender: normalizeProfileGender(profileGender),
       height: profileHeight ? parseInt(profileHeight, 10) : null,
       weight: profileWeight ? parseFloat(profileWeight) : null,
     };
@@ -1613,11 +1681,12 @@ function MainApp() {
         ...profile,
       };
       setUser(updatedUser);
+      applyUserProfile(updatedUser);
       setShowEditProfileModal(false);
     } catch (error) {
       Alert.alert('Errore profilo', error.message || 'Salvataggio non riuscito');
     }
-  }, [user, email, profileName, profileAge, profileHeight, profileWeight, authToken]);
+  }, [user, email, profileName, profileGender, profileHeight, profileWeight, authToken]);
 
   // Memoized grouped exercises — avoids re-iterating 200+ exercises on every render
   const groupExercisesByMuscle = useMemo(() => {
@@ -1733,6 +1802,7 @@ function MainApp() {
         <ExercisesScreen
           groupExercisesByMuscle={groupExercisesByMuscle}
           setShowCustomExercise={setShowCustomExercise}
+          openRenameCustomExercise={openRenameCustomExercise}
           deleteCustomExercise={deleteCustomExercise}
           formatDate={formatDate}
           currentScreen={currentScreen}
@@ -1747,6 +1817,7 @@ function MainApp() {
           profileName={profileName}
           profileSurname={profileSurname}
           profileBirthDate={profileBirthDate}
+          profileGender={profileGender}
           profileAge={profileAge}
           profileHeight={profileHeight}
           profileWeight={profileWeight}
@@ -1788,6 +1859,15 @@ function MainApp() {
         exercises={exercises}
         createCustomExercise={createCustomExercise}
       />
+      <RenameCustomExerciseModal
+        visible={showRenameCustomExercise}
+        exercise={renamingCustomExercise}
+        onClose={() => {
+          setShowRenameCustomExercise(false);
+          setRenamingCustomExercise(null);
+        }}
+        onSave={renameCustomExercise}
+      />
       <RestTimeModal
         showRestTimeModal={showRestTimeModal}
         setShowRestTimeModal={setShowRestTimeModal}
@@ -1801,8 +1881,8 @@ function MainApp() {
         setShowEditProfileModal={setShowEditProfileModal}
         profileName={profileName}
         setProfileName={setProfileName}
-        profileAge={profileAge}
-        setProfileAge={setProfileAge}
+        profileGender={profileGender}
+        setProfileGender={setProfileGender}
         profileHeight={profileHeight}
         setProfileHeight={setProfileHeight}
         profileWeight={profileWeight}

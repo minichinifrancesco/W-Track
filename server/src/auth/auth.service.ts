@@ -17,6 +17,8 @@ const ACCOUNT_ALREADY_EXISTS_ERROR = {
   code: 'ACCOUNT_ALREADY_EXISTS',
   message: 'Account già registrato, effettua il login',
 };
+const DEFAULT_GENDER = 'NON_SPECIFICATO';
+const ALLOWED_GENDERS = new Set(['MASCHIO', 'FEMMINA', 'NON_SPECIFICATO']);
 
 type UserRecord = {
   id: number;
@@ -24,6 +26,7 @@ type UserRecord = {
   name: string;
   surname: string;
   birthDate: Date;
+  gender: string;
   weight: number | null;
   heightCm: number | null;
   registrationDate: Date;
@@ -42,12 +45,14 @@ export class AuthService {
     name?: string;
     surname?: string;
     birthDate?: string | Date | null;
+    gender?: string | null;
   }): Promise<AuthResponse> {
     const email = this.normalizeEmail(body.email);
     const password = this.validateRegistrationPassword(body.password);
     const name = this.normalizeRequiredText(body.name, 'Nome');
     const surname = this.normalizeRequiredText(body.surname, 'Cognome');
     const birthDate = this.validateBirthDate(body.birthDate);
+    const gender = this.normalizeGender(body.gender);
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -61,6 +66,7 @@ export class AuthService {
           name,
           surname,
           birthDate,
+          gender,
           passwordHash: this.hashPassword(password),
           settings: { create: {} },
         },
@@ -98,17 +104,11 @@ export class AuthService {
     body: {
       name?: string;
       surname?: string | null;
-      birthDate?: string | Date | null;
-      age?: number | string | null;
+      gender?: string | null;
       height?: number | string | null;
       weight?: number | string | null;
     },
   ): Promise<{ user: PublicUser }> {
-    const birthDate =
-      body.birthDate === undefined
-        ? undefined
-        : this.validateBirthDate(body.birthDate);
-
     const user = await this.prisma.user.update({
       where: { id: authUser.userId },
       data: {
@@ -116,7 +116,9 @@ export class AuthService {
         ...(body.surname !== undefined
           ? { surname: this.normalizeRequiredText(body.surname, 'Cognome') }
           : {}),
-        ...(birthDate !== undefined ? { birthDate } : {}),
+        ...(body.gender !== undefined
+          ? { gender: this.normalizeGender(body.gender) }
+          : {}),
         heightCm: this.toNullableFloat(body.height),
         weight: this.toNullableFloat(body.weight),
       },
@@ -263,6 +265,34 @@ export class AuthService {
     return Number.isFinite(parsed) ? parsed : null;
   }
 
+  private normalizeGender(value: string | null | undefined): string {
+    const normalized = (value ?? DEFAULT_GENDER)
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, '_');
+
+    const aliases: Record<string, string> = {
+      M: 'MASCHIO',
+      MALE: 'MASCHIO',
+      UOMO: 'MASCHIO',
+      MASCHIO: 'MASCHIO',
+      F: 'FEMMINA',
+      FEMALE: 'FEMMINA',
+      DONNA: 'FEMMINA',
+      FEMMINA: 'FEMMINA',
+      ALTRO: DEFAULT_GENDER,
+      NON_SPECIFICATO: DEFAULT_GENDER,
+      NON_SPECIFICATA: DEFAULT_GENDER,
+      PREFERISCO_NON_SPECIFICARE: DEFAULT_GENDER,
+    };
+
+    const gender = aliases[normalized] ?? normalized;
+    if (!ALLOWED_GENDERS.has(gender)) {
+      throw new BadRequestException('Genere non valido');
+    }
+    return gender;
+  }
+
   private validateBirthDate(value: string | Date | null | undefined): Date {
     const birthDate = this.toNullableBirthDate(value);
     if (!birthDate) {
@@ -360,6 +390,7 @@ export class AuthService {
       email: user.email,
       name: user.name,
       surname: user.surname,
+      gender: user.gender || DEFAULT_GENDER,
       age: this.calculateAge(user.birthDate),
       birthDate: user.birthDate,
       weight: user.weight,
