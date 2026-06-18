@@ -2,15 +2,31 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'crypto';
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  randomInt,
+  scryptSync,
+  timingSafeEqual,
+} from 'crypto';
 import { Prisma } from '@prisma/client';
+import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthResponse, AuthUser, PublicUser } from './auth.types';
 
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+const PASSWORD_RESET_TTL_MS = 1000 * 60 * 15;
+const PASSWORD_RESET_RESEND_COOLDOWN_MS = 1000 * 60;
+const MAX_PASSWORD_RESET_ATTEMPTS = 5;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const RESET_CODE_PATTERN = /^\d{6}$/;
+const PASSWORD_RESET_REQUEST_MESSAGE =
+  'Se l’indirizzo è associato a un account, riceverai un codice via email.';
+const INVALID_RESET_CODE_MESSAGE = 'Codice non valido o scaduto';
 const PASSWORD_REQUIREMENTS_MESSAGE =
   'La password deve contenere almeno 8 caratteri, una lettera minuscola, una lettera maiuscola, un numero e un simbolo';
 const ACCOUNT_ALREADY_EXISTS_ERROR = {
@@ -37,7 +53,10 @@ export class AuthService {
   private readonly tokenSecret =
     process.env.AUTH_TOKEN_SECRET ?? 'wnote-local-dev-secret';
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
+  ) {}
 
   async register(body: {
     email?: string;
@@ -97,6 +116,117 @@ export class AuthService {
     }
 
     return this.buildAuthResponse(user);
+  }
+
+  async requestPasswordReset(
+    emailInput?: string,
+  ): Promise<{ message: string }> {
+    const email = this.normalizeEmail(emailInput);
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true },
+    });
+
+    if (!user) {
+      return { message: PASSWORD_RESET_REQUEST_MESSAGE };
+    }
+
+    const latestCode = await this.prisma.passwordResetCode.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    const now = new Date();
+
+    if (
+      latestCode &&
+      now.getTime() - latestCode.createdAt.getTime() <
+        PASSWORD_RESET_RESEND_COOLDOWN_MS
+    ) {
+      return { message: PASSWORD_RESET_REQUEST_MESSAGE };
+    }
+
+    const resetCode = randomInt(100000, 1000000).toString();
+    const createdCode = await this.prisma.passwordResetCode.create({
+      data: {
+        userId: user.id,
+        codeHash: this.hashResetCode(resetCode),
+        expiresAt: new Date(now.getTime() + PASSWORD_RESET_TTL_MS),
+      },
+    });
+
+    try {
+      await this.mailService.sendPasswordResetCode(user.email, resetCode);
+    } catch {
+      await this.prisma.passwordResetCode.delete({
+        where: { id: createdCode.id },
+      });
+      throw new ServiceUnavailableException(
+        'Impossibile inviare il codice in questo momento',
+      );
+    }
+
+    await this.prisma.passwordResetCode.updateMany({
+      where: {
+        userId: user.id,
+        id: { not: createdCode.id },
+        usedAt: null,
+      },
+      data: { usedAt: now },
+    });
+
+    return { message: PASSWORD_RESET_REQUEST_MESSAGE };
+  }
+
+  async verifyPasswordResetCode(
+    emailInput?: string,
+    codeInput?: string,
+  ): Promise<{ valid: true }> {
+    const email = this.normalizeEmail(emailInput);
+    const code = this.normalizeResetCode(codeInput);
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+
+    if (!user) {
+      this.throwInvalidResetCode();
+    }
+
+    await this.assertResetCodeValid(this.prisma, user.id, code);
+    return { valid: true };
+  }
+
+  async resetPassword(
+    emailInput?: string,
+    codeInput?: string,
+    newPasswordInput?: string,
+  ): Promise<{ message: string }> {
+    const email = this.normalizeEmail(emailInput);
+    const code = this.normalizeResetCode(codeInput);
+    const newPassword = this.validateRegistrationPassword(newPasswordInput);
+
+    await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
+
+      if (!user) {
+        this.throwInvalidResetCode();
+      }
+
+      await this.assertResetCodeValid(tx, user.id, code);
+      await tx.user.update({
+        where: { id: user.id },
+        data: { passwordHash: this.hashPassword(newPassword) },
+      });
+      await tx.passwordResetCode.updateMany({
+        where: { userId: user.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+    });
+
+    return { message: 'Password aggiornata con successo' };
   }
 
   async updateProfile(
@@ -208,6 +338,47 @@ export class AuthService {
     return timingSafeEqual(Buffer.from(hash, 'hex'), computed);
   }
 
+  private hashResetCode(code: string): string {
+    return createHash('sha256').update(code).digest('hex');
+  }
+
+  private async assertResetCodeValid(
+    client: PrismaService | Prisma.TransactionClient,
+    userId: number,
+    code: string,
+  ) {
+    const resetCode = await client.passwordResetCode.findFirst({
+      where: { userId, usedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+    const now = new Date();
+
+    if (
+      !resetCode ||
+      resetCode.expiresAt <= now ||
+      resetCode.attempts >= MAX_PASSWORD_RESET_ATTEMPTS
+    ) {
+      this.throwInvalidResetCode();
+    }
+
+    if (!this.isMatchingHash(this.hashResetCode(code), resetCode.codeHash)) {
+      await client.passwordResetCode.update({
+        where: { id: resetCode.id },
+        data: { attempts: { increment: 1 } },
+      });
+      this.throwInvalidResetCode();
+    }
+  }
+
+  private isMatchingHash(value: string, expected: string): boolean {
+    const valueBuffer = Buffer.from(value, 'hex');
+    const expectedBuffer = Buffer.from(expected, 'hex');
+    return (
+      valueBuffer.length === expectedBuffer.length &&
+      timingSafeEqual(valueBuffer, expectedBuffer)
+    );
+  }
+
   private normalizeEmail(email: string | undefined): string {
     const value = (email ?? '').trim().toLowerCase();
     if (!EMAIL_PATTERN.test(value)) {
@@ -220,6 +391,14 @@ export class AuthService {
     const value = password ?? '';
     if (!value) {
       throw new BadRequestException('Password obbligatoria');
+    }
+    return value;
+  }
+
+  private normalizeResetCode(code: string | undefined): string {
+    const value = (code ?? '').trim();
+    if (!RESET_CODE_PATTERN.test(value)) {
+      this.throwInvalidResetCode();
     }
     return value;
   }
@@ -241,6 +420,10 @@ export class AuthService {
   private normalizeName(name: string | undefined, email: string): string {
     const value = (name ?? '').trim();
     return value || email.split('@')[0] || 'Utente';
+  }
+
+  private throwInvalidResetCode(): never {
+    throw new BadRequestException(INVALID_RESET_CODE_MESSAGE);
   }
 
   private normalizeRequiredText(

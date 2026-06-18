@@ -25,13 +25,30 @@ model User {
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
-  settings        UserSettings?
-  customExercises Exercise[]
-  workoutPlans    WorkoutPlan[]
-  workouts        Workout[]
-  badges          UserBadge[]
+  settings           UserSettings?
+  customExercises    Exercise[]
+  workoutPlans       WorkoutPlan[]
+  workouts           Workout[]
+  badges             UserBadge[]
+  passwordResetCodes PasswordResetCode[]
 
   @@map("users")
+}
+
+model PasswordResetCode {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  codeHash  String    @map("code_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_codes")
 }
 
 model UserSettings {

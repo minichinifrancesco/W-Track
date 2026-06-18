@@ -115,6 +115,27 @@ export function register(profile) {
   });
 }
 
+export function requestPasswordReset(email) {
+  return request('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function verifyPasswordResetCode(email, code) {
+  return request('/auth/verify-reset-code', {
+    method: 'POST',
+    body: JSON.stringify({ email, code }),
+  });
+}
+
+export function resetPassword(email, code, newPassword) {
+  return request('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ email, code, newPassword }),
+  });
+}
+
 export function getExercises(token) {
   return request('/exercises', {
     method: 'GET',

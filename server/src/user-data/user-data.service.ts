@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { AuthUser } from '../auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -38,7 +42,8 @@ const BADGE_DEFINITIONS = [
   {
     code: 'PR_VOLUME',
     name: 'PR Volume Totale',
-    description: 'Nuovo volume totale migliore per un esercizio in una sessione.',
+    description:
+      'Nuovo volume totale migliore per un esercizio in una sessione.',
     icon: 'trending-up',
     category: 'Personal Record',
   },
@@ -146,7 +151,10 @@ export class UserDataService {
             duration: set.durationSeconds || 0,
             completed: set.completed,
             badges: set.badges.map((badge) =>
-              this.toClientBadge(badge, item.exercise?.name || item.nameSnapshot),
+              this.toClientBadge(
+                badge,
+                item.exercise?.name || item.nameSnapshot,
+              ),
             ),
           }));
           const first = setDetails[0] || {};
@@ -216,37 +224,39 @@ export class UserDataService {
             description: this.optionalText(plan.description),
             active: plan.active === false ? false : true,
             exercises: {
-              create: this.readArray(plan.exercises, 'workout.exercises').flatMap(
-                (exercise, index) => {
-                  const record = this.asRecord(exercise);
-                  const exerciseId = this.safeIntId(
-                    record.exerciseId ?? record.catalogExerciseId,
-                  );
-                  if (!exerciseId) return [];
-                  const sets = this.toSetDetails(record);
-                  return [
-                    {
-                      exerciseId,
-                      order: index + 1,
-                      note: this.optionalText(record.note),
-                      restSeconds: this.nonNegativeInt(record.restTime, 60),
-                      plannedSets: {
-                        create: sets.map((set, setIndex) => ({
-                          setNumber: setIndex + 1,
-                          targetLoad: this.nonNegativeNumber(set.weight, 0),
-                          targetReps: this.nonNegativeInt(set.reps, 0),
-                          targetDuration: this.nonNegativeInt(set.duration, 0),
-                        })),
-                      },
+              create: this.readArray(
+                plan.exercises,
+                'workout.exercises',
+              ).flatMap((exercise, index) => {
+                const record = this.asRecord(exercise);
+                const exerciseId = this.safeIntId(
+                  record.exerciseId ?? record.catalogExerciseId,
+                );
+                if (!exerciseId) return [];
+                const sets = this.toSetDetails(record);
+                return [
+                  {
+                    exerciseId,
+                    order: index + 1,
+                    note: this.optionalText(record.note),
+                    restSeconds: this.nonNegativeInt(record.restTime, 60),
+                    plannedSets: {
+                      create: sets.map((set, setIndex) => ({
+                        setNumber: setIndex + 1,
+                        targetLoad: this.nonNegativeNumber(set.weight, 0),
+                        targetReps: this.nonNegativeInt(set.reps, 0),
+                        targetDuration: this.nonNegativeInt(set.duration, 0),
+                      })),
                     },
-                  ];
-                },
-              ),
+                  },
+                ];
+              }),
             },
           },
         });
-        if (plan.id !== undefined && plan.id !== null) {
-          planIdMap.set(String(plan.id), created.id);
+        const planKey = this.recordKey(plan.id);
+        if (planKey) {
+          planIdMap.set(planKey, created.id);
         }
       }
 
@@ -257,15 +267,17 @@ export class UserDataService {
 
       for (const item of history) {
         const record = this.asRecord(item);
-        const originalWorkoutId = record.id;
+        const originalWorkoutIdKey = this.recordKey(record.id);
+        const workoutPlanKey = this.recordKey(record.workoutId);
         const planId =
-          record.workoutId !== undefined && record.workoutId !== null
-            ? planIdMap.get(String(record.workoutId)) ||
-              this.safeIntId(record.workoutId)
+          workoutPlanKey !== null
+            ? planIdMap.get(workoutPlanKey) || this.safeIntId(record.workoutId)
             : null;
         const workout = await tx.workout.create({
           data: {
-            ...(this.safeIntId(record.id) ? { id: this.safeIntId(record.id) } : {}),
+            ...(this.safeIntId(record.id)
+              ? { id: this.safeIntId(record.id) }
+              : {}),
             userId: authUser.userId,
             planId,
             nameSnapshot: this.requiredText(record.name, 'Nome workout'),
@@ -276,8 +288,8 @@ export class UserDataService {
             generalNote: this.optionalText(record.generalNote),
           },
         });
-        if (originalWorkoutId !== undefined && originalWorkoutId !== null) {
-          workoutIdMap.set(String(originalWorkoutId), workout.id);
+        if (originalWorkoutIdKey) {
+          workoutIdMap.set(originalWorkoutIdKey, workout.id);
         }
 
         for (const [exerciseIndex, exercise] of this.readArray(
@@ -285,7 +297,9 @@ export class UserDataService {
           'history.exercises',
         ).entries()) {
           const exerciseRecord = this.asRecord(exercise);
-          const originalWorkoutExerciseId = exerciseRecord.id;
+          const originalWorkoutExerciseIdKey = this.recordKey(
+            exerciseRecord.id,
+          );
           const workoutExercise = await tx.workoutExercise.create({
             data: {
               workoutId: workout.id,
@@ -306,12 +320,9 @@ export class UserDataService {
               restSeconds: this.nonNegativeInt(exerciseRecord.restTime, 60),
             },
           });
-          if (
-            originalWorkoutExerciseId !== undefined &&
-            originalWorkoutExerciseId !== null
-          ) {
+          if (originalWorkoutExerciseIdKey) {
             workoutExerciseIdMap.set(
-              String(originalWorkoutExerciseId),
+              originalWorkoutExerciseIdKey,
               workoutExercise.id,
             );
           }
@@ -410,10 +421,10 @@ export class UserDataService {
           update: {},
         });
 
-        const workoutId =
-          badge.workoutRecordId !== undefined && badge.workoutRecordId !== null
-            ? workoutIdMap.get(String(badge.workoutRecordId)) ?? null
-            : null;
+        const workoutRecordKey = this.recordKey(badge.workoutRecordId);
+        const workoutId = workoutRecordKey
+          ? (workoutIdMap.get(workoutRecordKey) ?? null)
+          : null;
         const exerciseId = this.safeIntId(badge.exerciseKey);
         const value = this.nonNegativeNumber(badge.value, 0);
         const earnedAt = this.toDate(badge.earnedAt);
@@ -448,7 +459,11 @@ export class UserDataService {
     return this.getData(authUser);
   }
 
-  async updateWorkoutPlan(authUser: AuthUser, planId: string, payload: unknown) {
+  async updateWorkoutPlan(
+    authUser: AuthUser,
+    planId: string,
+    payload: unknown,
+  ) {
     const id = this.requiredRouteId(planId, 'Scheda');
     await this.persistWorkoutPlan(authUser, payload, id);
     return this.getData(authUser);
@@ -603,7 +618,10 @@ export class UserDataService {
         }
       }
 
-      for (const badgeItem of this.readArray(record.prBadges, 'workout.badges')) {
+      for (const badgeItem of this.readArray(
+        record.prBadges,
+        'workout.badges',
+      )) {
         const badge = this.asRecord(badgeItem);
         const definitionId = this.requiredText(
           badge.definitionId,
@@ -690,14 +708,19 @@ export class UserDataService {
 
     if (payload.weightUnit !== undefined) {
       data.preferredLoadUnit =
-        String(payload.weightUnit).toLowerCase() === 'lbs' ? 'LBS' : 'KG';
+        this.textValue(payload.weightUnit).toLowerCase() === 'lbs'
+          ? 'LBS'
+          : 'KG';
     }
     if (payload.themeMode !== undefined) {
-      const theme = String(payload.themeMode);
+      const theme = this.textValue(payload.themeMode);
       data.theme = theme === 'dark' || theme === 'light' ? theme : 'system';
     }
     if (payload.defaultRestTime !== undefined) {
-      data.defaultRestSeconds = this.nonNegativeInt(payload.defaultRestTime, 60);
+      data.defaultRestSeconds = this.nonNegativeInt(
+        payload.defaultRestTime,
+        60,
+      );
     }
     if (payload.showExerciseNotes !== undefined) {
       data.exerciseNotesEnabled = Boolean(payload.showExerciseNotes);
@@ -862,7 +885,9 @@ export class UserDataService {
   }) {
     return {
       weightUnit:
-        settings.preferredLoadUnit === 'LBS' ? ('lbs' as const) : ('kg' as const),
+        settings.preferredLoadUnit === 'LBS'
+          ? ('lbs' as const)
+          : ('kg' as const),
       themeMode:
         settings.theme === 'dark' || settings.theme === 'light'
           ? settings.theme
@@ -874,7 +899,7 @@ export class UserDataService {
     };
   }
 
-  private toSetDetails(exercise: ClientRecord) {
+  private toSetDetails(exercise: ClientRecord): ClientRecord[] {
     const sets = this.readArray(exercise.setDetails, 'setDetails');
     if (sets.length > 0) return sets.map((item) => this.asRecord(item));
 
@@ -902,14 +927,29 @@ export class UserDataService {
   }
 
   private requiredText(value: unknown, fieldName: string): string {
-    const normalized = String(value ?? '').trim();
+    const normalized = this.textValue(value).trim();
     if (!normalized) throw new BadRequestException(`${fieldName} obbligatorio`);
     return normalized;
   }
 
   private optionalText(value: unknown): string | null {
-    const normalized = String(value ?? '').trim();
+    const normalized = this.textValue(value).trim();
     return normalized || null;
+  }
+
+  private textValue(value: unknown): string {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+    if (value instanceof Date) return value.toISOString();
+    return '';
+  }
+
+  private recordKey(value: unknown): string | null {
+    const key = this.textValue(value).trim();
+    return key || null;
   }
 
   private safeIntId(value: unknown): number | undefined {
@@ -932,18 +972,18 @@ export class UserDataService {
   }
 
   private nonNegativeInt(value: unknown, fallback: number): number {
-    const parsed = parseInt(String(value ?? ''), 10);
+    const parsed = parseInt(this.textValue(value), 10);
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
   }
 
   private toDate(value: unknown): Date {
-    const date = new Date(String(value || Date.now()));
+    const date = new Date(this.textValue(value) || Date.now());
     return Number.isNaN(date.getTime()) ? new Date() : date;
   }
 
   private toNullableDate(value: unknown): Date | null {
     if (!value) return null;
-    const date = new Date(String(value));
+    const date = new Date(this.textValue(value));
     return Number.isNaN(date.getTime()) ? null : date;
   }
 

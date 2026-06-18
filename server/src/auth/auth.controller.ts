@@ -27,6 +27,32 @@ export class AuthController {
     return this.authService.login(body);
   }
 
+  @Post('auth/forgot-password')
+  requestPasswordReset(@Body() body: { email?: string }) {
+    return this.authService.requestPasswordReset(body.email);
+  }
+
+  @Post('auth/verify-reset-code')
+  verifyPasswordResetCode(@Body() body: { email?: string; code?: string }) {
+    return this.authService.verifyPasswordResetCode(body.email, body.code);
+  }
+
+  @Post('auth/reset-password')
+  resetPassword(
+    @Body()
+    body: {
+      email?: string;
+      code?: string;
+      newPassword?: string;
+    },
+  ) {
+    return this.authService.resetPassword(
+      body.email,
+      body.code,
+      body.newPassword,
+    );
+  }
+
   @UseGuards(AuthGuard)
   @Patch('me/profile')
   updateProfile(
