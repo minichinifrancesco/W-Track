@@ -19,6 +19,22 @@ CREATE TABLE users (
   CHECK (genere IN ('MASCHIO', 'FEMMINA', 'NON_SPECIFICATO'))
 );
 
+CREATE TABLE password_reset_codes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  code_hash TEXT NOT NULL,
+  expires_at DATETIME NOT NULL,
+  used_at DATETIME,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+
+  CHECK (attempts >= 0)
+);
+
 CREATE TABLE user_settings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL UNIQUE,
@@ -253,6 +269,8 @@ CREATE TABLE user_badges (
 );
 
 CREATE INDEX idx_exercises_user_id ON exercises(user_id);
+CREATE INDEX idx_password_reset_codes_user_id ON password_reset_codes(user_id);
+CREATE INDEX idx_password_reset_codes_expires_at ON password_reset_codes(expires_at);
 CREATE INDEX idx_exercises_origine ON exercises(origine);
 CREATE INDEX idx_exercises_gruppo_muscolare ON exercises(gruppo_muscolare);
 CREATE INDEX idx_exercises_tipo_attrezzatura ON exercises(tipo_attrezzatura);
