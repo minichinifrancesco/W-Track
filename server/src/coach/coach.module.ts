@@ -3,9 +3,10 @@ import { PrismaModule } from "src/prisma/prisma.module";
 import { CoachController } from "./coach.controller";
 import { CoachService } from "./coach.service";
 import { CoachRepository } from "./repositories/coach.repository";
+import { AuthModule } from "src/auth/auth.module";
 
 @Module({
-    imports: [PrismaModule],
+    imports: [PrismaModule, AuthModule],
     controllers: [CoachController],
     providers: [CoachService, CoachRepository],
 })
