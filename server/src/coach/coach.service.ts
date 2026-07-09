@@ -1,0 +1,62 @@
+import { Injectable } from "@nestjs/common";
+import { AuthUser } from "src/auth/auth.types";
+import { WeeklyCoachSummaryDto } from "./dto/weeklyCoachSummary.dto";
+import {
+    toBadgeSummaryDto,
+    toComparisonDto,
+    toDayDtos,
+    toMuscleGroupDtos,
+    toPeriodDto,
+    toTotalsDto,
+} from './mappers/coach.mapper';
+import { CoachRepository } from "./repositories/coach.repository";
+import { buildCoachInsights } from "./rules/coachInsights.rules";
+import { getPreviousPeriod, getWeekPeriod } from "./utils/coachPeriod.util";
+
+@Injectable()
+export class CoachService {
+    constructor(private readonly coachRepository: CoachRepository){}
+
+    async getWeeklySummary(authUser: AuthUser, weekStart?: string) : Promise<WeeklyCoachSummaryDto> {
+        const period = getWeekPeriod(weekStart);
+        const previousPeriod= getPreviousPeriod(period);
+
+        const [
+            currentWorkoutTotals, 
+            currentSetTotals, 
+            previousWorkoutTotals, 
+            previousSetTotals, 
+            muscleGroupRows, 
+            workoutDayRows, 
+            setDayRows, 
+            badgeRows
+        ] = await Promise.all([
+            this.coachRepository.getWorkoutTotals(authUser.userId, period.start, period.end),
+            this.coachRepository.getSetTotals(authUser.userId, period.start, period.end),
+            this.coachRepository.getWorkoutTotals(authUser.userId, previousPeriod.start, previousPeriod.end),
+            this.coachRepository.getSetTotals(authUser.userId, previousPeriod.start, previousPeriod.end),
+            this.coachRepository.getMuscleGroups(authUser.userId, period.start, period.end),
+            this.coachRepository.getWorkoutDays(authUser.userId, period.start, period.end),
+            this.coachRepository.getSetDays(authUser.userId, period.start, period.end),
+            this.coachRepository.getBadges(authUser.userId, period.start, period.end),
+        ]);
+
+        const totals = toTotalsDto(currentWorkoutTotals[0], currentSetTotals[0]);
+        const previousTotals = toTotalsDto(previousWorkoutTotals[0], previousSetTotals[0]);
+        const muscleGroups = toMuscleGroupDtos(muscleGroupRows);
+        const days = toDayDtos(workoutDayRows, setDayRows);
+        const badges = toBadgeSummaryDto(badgeRows);
+
+        return{
+            period: toPeriodDto(period),
+            previousPeriod: toPeriodDto(previousPeriod),
+            totals,
+            comparison: toComparisonDto(totals, previousTotals),
+            muscleGroups,
+            days,
+            badges,
+            insights: buildCoachInsights(totals, previousTotals, muscleGroups, badges),
+        };
+
+    }
+}

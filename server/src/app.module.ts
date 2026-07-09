@@ -4,9 +4,10 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ExercisesModule } from './exercises/exercises.module';
 import { UserDataModule } from './user-data/user-data.module';
+import { CoachModule } from './coach/coach.module';
 
 @Module({
-  imports: [AuthModule, ExercisesModule, UserDataModule],
+  imports: [AuthModule, ExercisesModule, UserDataModule, CoachModule],
   controllers: [AppController],
   providers: [AppService],
 })

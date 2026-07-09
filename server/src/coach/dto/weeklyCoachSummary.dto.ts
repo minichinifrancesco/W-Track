@@ -1,0 +1,68 @@
+export type CoachMuscleGroupStatus = 'none' | 'low' | 'ok' | 'high';
+export type CoachInsightSeverity = 'info' | 'success' | 'warning' | 'danger';
+
+export class CoachTotalsDto {
+    sessions!: number;
+    durationSeconds!: number;
+    completedSets!: number;
+    volume!: number;
+    averageDurationSeconds!: number;
+}
+
+export class CoachMuscleGroupDto {
+    name!: string;
+    sets!: number;
+    volume!: number;
+    exerciseCount!: number;
+    lastTrainedAt!: string | null;
+    status!: CoachMuscleGroupStatus;
+}
+
+export class CoachInsightDto {
+    type!: string;
+    severity!: CoachInsightSeverity;
+    title!: string;
+    message!: string;
+    relatedMuscleGroup!: string | null;
+}
+
+export class WeeklyCoachSummaryDto {
+    period!: { start: string; end: string; label: string };
+    previousPeriod!: { start: string; end: string; label: string };
+    totals!: CoachTotalsDto;
+    comparison!: CoachComparisonDto;
+    muscleGroups!: CoachMuscleGroupDto[];
+    days!: CoachDayDto[];
+    badges!: CoachBadgeSummaryDto;
+    insights!: CoachInsightDto[];
+}
+
+export class CoachDayDto {
+    date!: string;
+    sessions!: number;
+    durationSeconds!: number;
+    completedSets!: number;
+    volume!: number;
+}
+
+export class CoachBadgeDto {
+    id!: number;
+    code!: string;
+    name!: string;
+    exerciseName!: string | null;
+    value!: number | null;
+    earnedAt!: string;
+}
+
+export class CoachBadgeSummaryDto {
+    earned!: number;
+    items!: CoachBadgeDto[];
+}
+
+export class CoachComparisonDto {
+  sessionsDelta!: number;
+  durationSecondsDelta!: number;
+  completedSetsDelta!: number;
+  volumeDelta!: number;
+  volumeDeltaPercent!: number;
+}
