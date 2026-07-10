@@ -26,7 +26,8 @@ export class CoachService {
             currentSetTotals, 
             previousWorkoutTotals, 
             previousSetTotals, 
-            muscleGroupRows, 
+            muscleGroupRows,
+            lastTrainedMuscleGroupRows, 
             workoutDayRows, 
             setDayRows, 
             badgeRows
@@ -36,6 +37,7 @@ export class CoachService {
             this.coachRepository.getWorkoutTotals(authUser.userId, previousPeriod.start, previousPeriod.end),
             this.coachRepository.getSetTotals(authUser.userId, previousPeriod.start, previousPeriod.end),
             this.coachRepository.getMuscleGroups(authUser.userId, period.start, period.end),
+            this.coachRepository.getLastTrainedMuscleGroups(authUser.userId),
             this.coachRepository.getWorkoutDays(authUser.userId, period.start, period.end),
             this.coachRepository.getSetDays(authUser.userId, period.start, period.end),
             this.coachRepository.getBadges(authUser.userId, period.start, period.end),
@@ -43,7 +45,7 @@ export class CoachService {
 
         const totals = toTotalsDto(currentWorkoutTotals[0], currentSetTotals[0]);
         const previousTotals = toTotalsDto(previousWorkoutTotals[0], previousSetTotals[0]);
-        const muscleGroups = toMuscleGroupDtos(muscleGroupRows);
+        const muscleGroups = toMuscleGroupDtos(muscleGroupRows, lastTrainedMuscleGroupRows);
         const days = toDayDtos(workoutDayRows, setDayRows);
         const badges = toBadgeSummaryDto(badgeRows);
 

@@ -10,12 +10,14 @@ import {
 import {
     BadgeRow,
     CoachPeriod,
+    MuscleGroupLastTrainedRow,
     MuscleGroupRow,
     SetDayRow,
     SetTotalsRow,
     WorkoutDayRow,
     WorkoutTotalsRow
 } from '../types/coachQueryRows.types';
+import { COACH_TRACKED_MUSCLE_GROUPS } from '../constants/coachMuscleGroups.constants';
 
 export function toPeriodDto(period: CoachPeriod) {
     return {
@@ -41,16 +43,21 @@ export function toTotalsDto(workoutRow?: WorkoutTotalsRow, setRow?: SetTotalsRow
     };
 }
 
-export function toMuscleGroupDtos(rows: MuscleGroupRow[]) : CoachMuscleGroupDto[] {
-    return rows.map((row) => {
-        const sets = Number(row.sets) || 0;
+export function toMuscleGroupDtos(rows: MuscleGroupRow[], lastTrainedRows: MuscleGroupLastTrainedRow[]) : CoachMuscleGroupDto[] {
+    const rowsByName = new Map(rows.map((row) => [row.name, row]));
+    const lastTrainedByName = new Map(lastTrainedRows.map((row) => [row.name, row.lastTrainedAt]));
+
+    return COACH_TRACKED_MUSCLE_GROUPS.map((groupName) => {
+        const row = rowsByName.get(groupName);
+        const sets = Number(row?.sets) || 0;
+        const lastTrainedAt = row?.lastTrainedAt ?? lastTrainedByName.get(groupName) ?? null;
 
         return {
-            name: row.name,
+            name: groupName,
             sets,
-            volume: Number(row.volume) || 0,
-            exerciseCount: Number(row.exerciseCount) || 0,
-            lastTrainedAt: row.lastTrainedAt ? new Date(row.lastTrainedAt).toISOString() : null,
+            volume: Number(row?.volume) || 0,
+            exerciseCount: Number(row?.exerciseCount) || 0,
+            lastTrainedAt: lastTrainedAt ? new Date(lastTrainedAt).toISOString() : null,
             status: getMuscleGroupStatus(sets),
         };
     });

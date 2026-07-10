@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
 import {
     BadgeRow,
+    MuscleGroupLastTrainedRow,
     MuscleGroupRow,
     SetDayRow,
     SetTotalsRow,
@@ -122,4 +123,20 @@ export class CoachRepository {
         ORDER BY ub.ottenuto_il DESC
         `;
     }
-}
+
+    getLastTrainedMuscleGroups(userId: number){
+        return this.prisma.$queryRaw<MuscleGroupLastTrainedRow[]>`
+        SELECT
+            we.gruppo_muscolare_snapshot AS name,
+            MAX(w.ora_inizio) AS lastTrainedAt
+        FROM workouts w
+        JOIN workout_exercises we ON we.workout_id = w.id
+        JOIN executed_sets es ON es.workout_exercise_id = we.id
+        WHERE
+            w.user_id = ${userId}
+            AND w.completato = 1
+            AND es.completata = 1
+        GROUP BY we.gruppo_muscolare_snapshot
+        `;
+    }
+};

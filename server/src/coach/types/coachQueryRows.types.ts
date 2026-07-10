@@ -41,3 +41,8 @@ export type BadgeRow = {
     value: number | null;
     earnedAt: Date | string;
 };
+
+export type MuscleGroupLastTrainedRow = {
+    name: string;
+    lastTrainedAt: Date | string | null;
+};
