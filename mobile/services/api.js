@@ -242,3 +242,12 @@ export function updateProfile(token, profile) {
     body: JSON.stringify(profile),
   });
 }
+
+export function getWeeklyCoachSummary(token, weekStart) {
+  const query = weekStart ? `?weekStart=${encodeURIComponent(weekStart)}` : '';
+
+  return request(`/me/coach/weekly${query}`, {
+    method: 'GET',
+    token,
+  });
+}

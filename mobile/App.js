@@ -40,6 +40,7 @@ import EditTemplateScreen from './screens/EditTemplateScreen';
 import HistoryScreen from './screens/HistoryScreen';
 import ExercisesScreen from './screens/ExercisesScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import CoachScreen from './screens/CoachScreen';
 
 // Modals
 import CreateWorkoutModal from './modals/CreateWorkoutModal';
@@ -1731,6 +1732,13 @@ function MainApp() {
           currentScreen={currentScreen}
           setCurrentScreen={setCurrentScreen}
           activeWorkout={activeWorkout}
+        />
+      )}
+      {currentScreen === 'coach' && (
+        <CoachScreen 
+          authToken={authToken}
+          currentScreen={currentScreen}
+          setCurrentScreen={setCurrentScreen}
         />
       )}
       {currentScreen === 'activeWorkout' && (

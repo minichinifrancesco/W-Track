@@ -74,6 +74,27 @@ export default function BottomNav({ currentScreen, setCurrentScreen }) {
         </Text>
       </TouchableOpacity>
 
+      <TouchableOpacity 
+        style={[
+          styles.navButton,
+          currentScreen === 'coach' && styles.navButtonActive,
+        ]}
+        onPress={() => setCurrentScreen('coach')}>
+          <Ionicons
+            name={currentScreen === 'coach' ? 'analytics' : 'analytics-outline'}
+            size={22}
+            color={currentScreen === 'coach' ? C.textDark : C.textMuted}
+            style={{ marginBottom: 2}}
+          />
+          <Text
+            style={[
+              styles.navLabel,
+              currentScreen === 'coach' && styles.navLabelActive,
+            ]}>
+            COACH
+          </Text>
+      </TouchableOpacity>
+
       <TouchableOpacity
         style={[
           styles.navButton,
