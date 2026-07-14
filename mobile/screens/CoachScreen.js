@@ -14,6 +14,7 @@ import { useEffectiveDark } from "../context/SettingsContext";
 import { getStyles, getThemeColors } from "../styles/styles";
 import CoachSummaryMetrics from "../features/coach/components/CoachSummaryMetrics";
 import CoachWeekNavigator from "../features/coach/components/CoachWeekNavigator";
+import CoachComparisonCard from "../features/coach/components/CoachComparisonCard";
 import { useWeeklyCoachSummary } from "../features/coach/hooks/useWeeklyCoachSummary";
 
 export default function CoachScreen ({ authToken, currentScreen, setCurrentScreen }) {
@@ -82,11 +83,19 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
                 ) : null}
 
                 {!loading && !error ? (
-                    <CoachSummaryMetrics
-                        summary={summary}
-                        colors={colors}
-                        styles={styles}
-                    />
+                    <>
+                        <CoachSummaryMetrics
+                            summary={summary}
+                            colors={colors}
+                            styles={styles}
+                        />
+
+                        <CoachComparisonCard 
+                            summary={summary}
+                            colors={colors}
+                            styles={styles}
+                        />
+                    </>
                 ) : null}
             </ScrollView>
 
