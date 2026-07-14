@@ -80,11 +80,11 @@ export default function BottomNav({ currentScreen, setCurrentScreen }) {
           currentScreen === 'coach' && styles.navButtonActive,
         ]}
         onPress={() => setCurrentScreen('coach')}>
-          <Ionicons
-            name={currentScreen === 'coach' ? 'analytics' : 'analytics-outline'}
+          <MaterialCommunityIcons 
+            name={currentScreen === 'coach' ? 'whistle' : 'whistle-outline'}
             size={22}
             color={currentScreen === 'coach' ? C.textDark : C.textMuted}
-            style={{ marginBottom: 2}}
+            style={{ marginBottom: 2 }}
           />
           <Text
             style={[
