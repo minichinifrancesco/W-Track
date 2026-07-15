@@ -15,6 +15,8 @@ import { getStyles, getThemeColors } from "../styles/styles";
 import CoachSummaryMetrics from "../features/coach/components/CoachSummaryMetrics";
 import CoachWeekNavigator from "../features/coach/components/CoachWeekNavigator";
 import CoachComparisonCard from "../features/coach/components/CoachComparisonCard";
+import CoachInsightsSection from "../features/coach/components/CoachInsightsSection";
+import CoachMuscleGroupsSection from "../features/coach/components/CoachMuscleGroupsSection";
 import { useWeeklyCoachSummary } from "../features/coach/hooks/useWeeklyCoachSummary";
 
 export default function CoachScreen ({ authToken, currentScreen, setCurrentScreen }) {
@@ -76,7 +78,7 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
                     <View style={styles.workoutCard}>
                         <Text style={styles.sectionTitle}>Errore</Text>
 
-                        <Text style={{ color:colors.textMuted, marginTop: 8 }}>
+                        <Text style={{ color: colors.textMuted, marginTop: 8 }}>
                             {error}
                         </Text>
                     </View>
@@ -91,6 +93,18 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
                         />
 
                         <CoachComparisonCard 
+                            summary={summary}
+                            colors={colors}
+                            styles={styles}
+                        />
+
+                        <CoachInsightsSection 
+                            summary={summary}
+                            colors={colors}
+                            styles={styles}
+                        />
+
+                        <CoachMuscleGroupsSection 
                             summary={summary}
                             colors={colors}
                             styles={styles}

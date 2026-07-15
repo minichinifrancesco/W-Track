@@ -41,3 +41,34 @@ export function formatSignedDuration(seconds = 0) {
     if(hours > 0) return `${prefix}${hours}h ${minutes}m`;
     return `${prefix}${minutes}m`;
 }
+
+export function formatLastTrainedAt(value) {
+    if(!value) return 'Mai allenato';
+
+    const date = new Date(value);
+    if(Number.isNaN(date.getTime())) return 'Data non disponibile';
+
+    const diffMs = Date.now() - date.getTime();
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if(days <= 0) return 'Oggi';
+    if(days === 1) return 'Ieri';
+
+    return `${days} giorni fa`;
+}
+
+export function formatSetCount(value = 0) {
+    const count = Number(value || 0);
+
+    if(count === 1) return '1 serie';
+
+    return `${count} serie`;
+}
+
+export function formatExerciseCount(value = 0) {
+    const count = Number(value || 0);
+
+    if(count === 1) return '1 esercizio';
+
+    return `${count} esercizi`;
+}
