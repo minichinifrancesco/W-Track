@@ -17,6 +17,7 @@ import CoachWeekNavigator from "../features/coach/components/CoachWeekNavigator"
 import CoachComparisonCard from "../features/coach/components/CoachComparisonCard";
 import CoachInsightsSection from "../features/coach/components/CoachInsightsSection";
 import CoachMuscleGroupsSection from "../features/coach/components/CoachMuscleGroupsSection";
+import CoachWeekDayStrip from "../features/coach/components/CoachWeekDayStrip";
 import { useWeeklyCoachSummary } from "../features/coach/hooks/useWeeklyCoachSummary";
 
 export default function CoachScreen ({ authToken, currentScreen, setCurrentScreen }) {
@@ -87,6 +88,12 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
                 {!loading && !error ? (
                     <>
                         <CoachSummaryMetrics
+                            summary={summary}
+                            colors={colors}
+                            styles={styles}
+                        />
+
+                        <CoachWeekDayStrip
                             summary={summary}
                             colors={colors}
                             styles={styles}
