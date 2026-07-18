@@ -19,6 +19,7 @@ import CoachInsightsSection from "../features/coach/components/CoachInsightsSect
 import CoachMuscleGroupsSection from "../features/coach/components/CoachMuscleGroupsSection";
 import CoachWeekDayStrip from "../features/coach/components/CoachWeekDayStrip";
 import CoachBadgesSection from "../features/coach/components/CoachBadgesSection";
+import CoachEmptyState from "../features/coach/components/CoachEmptyState";
 import { useWeeklyCoachSummary } from "../features/coach/hooks/useWeeklyCoachSummary";
 
 export default function CoachScreen ({ authToken, currentScreen, setCurrentScreen }) {
@@ -37,6 +38,12 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
         goToCurrentWeek,
         refresh
     } = useWeeklyCoachSummary(authToken);
+
+    const hasSessions = Number(summary?.totals?.sessions || 0) > 0;
+
+    const goToHome = () => {
+        setCurrentScreen('home');
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -86,7 +93,7 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
                     </View>
                 ) : null}
 
-                {!loading && !error ? (
+                {!loading && !error && summary ? (
                     <>
                         <CoachSummaryMetrics
                             summary={summary}
@@ -94,35 +101,47 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
                             styles={styles}
                         />
 
-                        <CoachWeekDayStrip
-                            summary={summary}
-                            colors={colors}
-                            styles={styles}
-                        />
+                        {hasSessions ? (
+                            <>
+                                <CoachWeekDayStrip
+                                    summary={summary}
+                                    colors={colors}
+                                    styles={styles}
+                                />
 
-                        <CoachComparisonCard 
-                            summary={summary}
-                            colors={colors}
-                            styles={styles}
-                        />
+                                <CoachComparisonCard
+                                    summary={summary}
+                                    colors={colors}
+                                    styles={styles}
+                                />
 
-                        <CoachInsightsSection 
-                            summary={summary}
-                            colors={colors}
-                            styles={styles}
-                        />
+                                <CoachInsightsSection
+                                    summary={summary}
+                                    colors={colors}
+                                    styles={styles}
+                                />
+                                
+                                <CoachMuscleGroupsSection
+                                    summary={summary}
+                                    colors={colors}
+                                    styles={styles}
+                                />
 
-                        <CoachMuscleGroupsSection 
-                            summary={summary}
-                            colors={colors}
-                            styles={styles}
-                        />
-
-                        <CoachBadgesSection
-                            summary={summary}
-                            colors={colors}
-                            styles={styles}
-                        />
+                                <CoachBadgesSection
+                                    summary={summary}
+                                    colors={colors}
+                                    styles={styles}
+                                />
+                            </>
+                        ) : (
+                            <CoachEmptyState
+                                colors={colors}
+                                styles={styles}
+                                onGoHome={goToHome}
+                                showGoHomeButton={isCurrentWeek}
+                                isCurrentWeek={isCurrentWeek}
+                            />
+                        )}
                     </>
                 ) : null}
             </ScrollView>

@@ -4,6 +4,7 @@ import {
     formatSignedDuration,
     formatSignedNumber,
     formatSignedPercent,
+    formatSignedVolume
 } from '../utils/coachFormatter';
 import CoachComparisonRow from './CoachComparisonRow';
 
@@ -31,7 +32,7 @@ export default function CoachComparisonCard({ summary, colors, styles }) {
             },
             {
                 label: 'Volume',
-                value: formatSignedNumber(comparison.volumeDelta),
+                value: formatSignedVolume(comparison.volumeDelta),
                 rawValue: comparison.volumeDelta,
             },
             {

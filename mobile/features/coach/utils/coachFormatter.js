@@ -72,3 +72,35 @@ export function formatExerciseCount(value = 0) {
 
     return `${count} esercizi`;
 }
+
+export function formatVolume(value = 0) {
+    return `${formatNumber(value)} kg x rep`;
+}
+
+export function formatSignedVolume(value = 0) {
+    return `${formatSignedNumber(value)} kg x rep`;
+}
+
+export function formatWeight(value = 0) {
+    return `${formatNumber(value)} kg`;
+}
+
+export function formatReps(value = 0) {
+    const count = Number(value || 0);
+
+    if(count === 1) return '1 rep';
+
+    return `${formatNumber(count)} reps`;
+}
+
+export function formatBadgeValue(value, code) {
+    if(value === null || value === undefined) return null;
+
+    const safeCode = String(code || '').toUpperCase();
+
+    if(safeCode.includes('VOLUME')) return formatVolume(value);
+    if(safeCode.includes('PESO') || safeCode.includes('WEIGHT')) return formatWeight(value);
+    if(safeCode.includes('REP')) return formatReps(value);
+
+    return formatNumber(value);
+}

@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { Text, View } from 'react-native';
-import { formatDuration, formatNumber } from "../utils/coachFormatter";
+import { formatDuration, formatVolume } from "../utils/coachFormatter";
 import CoachMetricCard from "./CoachMetricCard";
 
 export default function CoachSummaryMetrics({ summary, colors, styles }) {
@@ -25,7 +25,7 @@ export default function CoachSummaryMetrics({ summary, colors, styles }) {
             },
             {
                 label: 'Volume',
-                value: formatNumber(summary.totals.volume),
+                value: formatVolume(summary.totals.volume),
                 icon: 'trending-up-outline',
             },
         ];

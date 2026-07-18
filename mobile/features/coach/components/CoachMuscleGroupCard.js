@@ -3,8 +3,8 @@ import { Text, View } from 'react-native';
 import {
     formatExerciseCount,
     formatLastTrainedAt,
-    formatNumber,
-    formatSetCount
+    formatSetCount,
+    formatVolume
 } from '../utils/coachFormatter';
 import {
     getMuscleGroupStatusLabel,
@@ -54,7 +54,7 @@ export default function CoachMuscleGroupCard({ group, colors }) {
                             lineHeight: 18,
                         }}
                     >
-                        {formatSetCount(group.sets)} · {formatExerciseCount(group.exerciseCount)} · volume {formatNumber(group.volume)}
+                        {formatSetCount(group.sets)} · {formatExerciseCount(group.exerciseCount)} · volume {formatVolume(group.volume)}
                     </Text>
 
                     {isNotTrained ? (

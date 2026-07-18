@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { formatNumber } from '../utils/coachFormatter';
+import { formatBadgeValue } from '../utils/coachFormatter';
 
 function getBadgeIcon(code) {
     const safeCode = String(code || '').toUpperCase();
@@ -21,7 +21,7 @@ function formatBadgeDetail(badge) {
     }
 
     if(badge.value !== null && badge.value !== undefined) {
-        parts.push(formatNumber(badge.value));
+        parts.push(formatBadgeValue(badge.value, badge.code));
     }
     
     return parts.length > 0 ? parts.join(' · ') : 'Badge generale';
