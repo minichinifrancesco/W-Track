@@ -2,6 +2,7 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { formatBadgeValue } from '../utils/coachFormatter';
+import { getCoachIconBubbleStyle, getCoachListRowStyle } from '../styles/coachUi';
 
 function getBadgeIcon(code) {
     const safeCode = String(code || '').toUpperCase();
@@ -27,30 +28,10 @@ function formatBadgeDetail(badge) {
     return parts.length > 0 ? parts.join(' · ') : 'Badge generale';
 }
 
-export default function CoachBadgeRow({ badge, colors }) {
+export default function CoachBadgeRow({ badge, colors, isLast = false }) {
     return (
-        <View 
-            style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 10,
-                paddingVertical: 10,
-                borderBottomWidth: 1,
-                borderBottomColor: colors.border,
-            }}
-        >
-            <View 
-                style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 17,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: colors.accentGreenBg,
-                    borderWidth: 1,
-                    borderColor: colors.accentGreenBorder,
-                }}
-            >
+        <View style={getCoachListRowStyle(colors, isLast)}>
+            <View style={getCoachIconBubbleStyle(colors)}>
                 <Ionicons 
                     name={getBadgeIcon(badge.code)}
                     size={18}

@@ -7,6 +7,7 @@ import {
     formatSignedVolume
 } from '../utils/coachFormatter';
 import CoachComparisonRow from './CoachComparisonRow';
+import { getCoachMutedTextStyle } from '../styles/coachUi';
 
 export default function CoachComparisonCard({ summary, colors, styles }) {
     const rows = useMemo(() => {
@@ -50,23 +51,25 @@ export default function CoachComparisonCard({ summary, colors, styles }) {
             <Text style={styles.sectionTitle}>Confronto settimana precedente</Text>
 
             <Text 
-                style={{
-                    color: colors.textMuted,
-                    fontSize: 13,
-                    marginTop: 6,
-                    marginBottom: 8,
-                }}
+                style={[
+                    getCoachMutedTextStyle(colors),
+                    {
+                        marginTop: 6,
+                        marginBottom: 8,
+                    },
+                ]}
             >
                 Differenza rispetto al periodo precedente
             </Text>
 
-            {rows.map((row) => (
+            {rows.map((row, index) => (
                 <CoachComparisonRow
                     key={row.label}
                     label={row.label}
                     value={row.value}
                     rawValue={row.rawValue}
                     colors={colors}
+                    isLast={index === rows.length - 1}
                 />
             ))}
         </View>

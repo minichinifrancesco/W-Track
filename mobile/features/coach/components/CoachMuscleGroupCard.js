@@ -10,6 +10,7 @@ import {
     getMuscleGroupStatusLabel,
     getMuscleGroupStatusTheme
 } from '../utils/coachMuscleGroup';
+import { getCoachInnerCardStyle, getCoachMutedTextStyle } from '../styles/coachUi';
 
 export default function CoachMuscleGroupCard({ group, colors }) {
     const theme = getMuscleGroupStatusTheme(group.status, colors);
@@ -17,16 +18,7 @@ export default function CoachMuscleGroupCard({ group, colors }) {
     const isNotTrained = group.status === 'none';
 
     return (
-        <View 
-            style={{
-                borderWidth: 1,
-                borderColor: colors.border,
-                backgroundColor: colors.inputBg,
-                borderRadius: 8,
-                padding: 12,
-                marginTop: 10,
-            }}
-        >
+        <View style={getCoachInnerCardStyle(colors)}>
             <View 
                 style={{
                     flexDirection: 'row',
@@ -47,23 +39,23 @@ export default function CoachMuscleGroupCard({ group, colors }) {
                     </Text>
 
                     <Text 
-                        style={{
-                            color: colors.textMuted,
-                            fontSize: 13,
-                            marginTop: 4,
-                            lineHeight: 18,
-                        }}
+                        style={[
+                            getCoachMutedTextStyle(colors),
+                            { marginTop: 4 },
+                        ]}
                     >
                         {formatSetCount(group.sets)} · {formatExerciseCount(group.exerciseCount)} · volume {formatVolume(group.volume)}
                     </Text>
 
                     {isNotTrained ? (
                         <Text 
-                            style={{
-                                color: colors.textMuted,
-                                fontSize: 12,
-                                marginTop: 6,
-                            }}
+                            style={[
+                                getCoachMutedTextStyle(colors),
+                                {
+                                    fontSize: 12,
+                                    marginTop: 6,
+                                },
+                            ]}
                         >
                             Ultima volta: {formatLastTrainedAt(group.lastTrainedAt)}
                         </Text>
@@ -72,6 +64,7 @@ export default function CoachMuscleGroupCard({ group, colors }) {
 
                 <View 
                     style={{
+                        flexShrink: 0,
                         borderWidth: 1,
                         borderColor: theme.borderColor,
                         backgroundColor: theme.backgroundColor,

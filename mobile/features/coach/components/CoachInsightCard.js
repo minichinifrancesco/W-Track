@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { getCoachInnerCardStyle, getCoachMutedTextStyle } from '../styles/coachUi';
 
 function getInsightTheme(severity, colors) {
     switch(severity){
@@ -43,16 +44,7 @@ export default function CoachInsightCard({ insight, colors }) {
     const theme = getInsightTheme(insight.severity, colors);
 
     return (
-        <View 
-            style={{
-                borderWidth: 1,
-                borderColor: theme.borderColor,
-                backgroundColor: theme.backgroundColor,
-                borderRadius: 8,
-                padding: 12,
-                marginTop: 10,
-            }}
-        >
+        <View style={getCoachInnerCardStyle(colors, theme.borderColor, theme.backgroundColor)}>
             <View 
                 style={{
                     flexDirection: 'row',
@@ -74,12 +66,10 @@ export default function CoachInsightCard({ insight, colors }) {
                     </Text>
 
                     <Text 
-                        style={{
-                            color: colors.textMuted,
-                            fontSize: 13,
-                            lineHeight: 18,
-                            marginTop: 4,
-                        }}
+                        style={[
+                            getCoachMutedTextStyle(colors),
+                            { marginTop: 4},
+                        ]}
                     >
                         {insight.message}
                     </Text>

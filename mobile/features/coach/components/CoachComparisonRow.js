@@ -1,6 +1,7 @@
 import React from "react";
 import { Text, View } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
+import { getCoachListRowStyle } from "../styles/coachUi";
 
 function getDeltaColor(value, colors) {
     if(value > 0) return colors.primary;
@@ -16,23 +17,22 @@ function getDeltaIcon(value) {
     return 'remove-outline';
 }
 
-export default function CoachComparisonRow({ label, value, rawValue, colors }) {
+export default function CoachComparisonRow({ label, value, rawValue, colors, isLast = false }) {
     const color = getDeltaColor(rawValue, colors);
     const icon = getDeltaIcon(rawValue);
 
     return (
         <View 
-            style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingVertical: 10,
-                borderBottomWidth: 1,
-                borderBottomColor: colors.border,
-            }}
+            style={[
+                getCoachListRowStyle(colors, isLast),
+                { justifyContent: 'space-between' },
+            ]}
         >
             <Text 
+                numberOfLines={1}
                 style={{
+                    flex: 1,
+                    marginRight: 10,
                     color: colors.textDark,
                     fontSize: 14,
                     fontWeight: '600',
@@ -50,6 +50,7 @@ export default function CoachComparisonRow({ label, value, rawValue, colors }) {
                 <Ionicons name={icon} size={16} color={color} />
 
                 <Text 
+                    numberOfLines={1}
                     style={{
                         color,
                         fontSize: 14,

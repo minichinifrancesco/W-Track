@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Text, View } from 'react-native';
 import CoachMuscleGroupCard from './CoachMuscleGroupCard';
+import CoachShowMoreButton from './CoachShowMoreButton';
+import { getCoachMutedTextStyle } from '../styles/coachUi';
 
 const STATUS_ORDER = {
     none: 0,
@@ -40,12 +42,13 @@ export default function CoachMuscleGroupsSection({ summary, colors, styles }) {
             <Text style={styles.sectionTitle}>Gruppi Muscolari</Text>
 
             <Text 
-                style={{
-                    color: colors.textMuted,
-                    fontSize: 13,
-                    marginTop: 6,
-                    marginBottom: 2,
-                }}
+                style={[
+                    getCoachMutedTextStyle(colors),
+                    {
+                        marginTop: 6,
+                        marginBottom: 2,
+                    },
+                ]}
             >
                 Copertura muscolare del periodo selezionato
             </Text>
@@ -59,29 +62,11 @@ export default function CoachMuscleGroupsSection({ summary, colors, styles }) {
             ))}
 
             {hasHiddenGroups ? (
-                <TouchableOpacity
+                <CoachShowMoreButton
+                    colors={colors}
+                    expanded={expanded}
                     onPress={() => setExpanded((current) => !current)}
-                    activeOpacity={0.8}
-                    style={{
-                        marginTop: 10,
-                        paddingVertical: 10,
-                        alignItems: 'center',
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: colors.border,
-                        backgroundColor: colors.inputBg,
-                    }}
-                >
-                    <Text
-                        style={{
-                            color: colors.primary,
-                            fontSize: 13,
-                            fontWeight: '700',
-                        }}
-                    >
-                        {expanded ? 'Mostra meno' : 'Mostra di più'}
-                    </Text>
-                </TouchableOpacity>
+                />
             ) : null}
         </View>
     );
