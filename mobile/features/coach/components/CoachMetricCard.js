@@ -22,6 +22,9 @@ export default function CoachMetricCard({ metric, colors }) {
             </Text>
 
             <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
                 style={{
                     color: colors.textDark,
                     fontSize: 22,

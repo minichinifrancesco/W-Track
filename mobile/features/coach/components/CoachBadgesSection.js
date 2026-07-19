@@ -6,7 +6,7 @@ import { getCoachMutedTextStyle } from '../styles/coachUi';
 
 const BADGES_PREVIEW_LIMIT = 4;
 
-export default function CoachBadgesSection({ summary, colors, styles }) {
+export default function CoachBadgesSection({ summary, colors, styles, formatOptions }) {
     const badges = summary?.badges;
 
     const items = useMemo(() => {
@@ -50,6 +50,7 @@ export default function CoachBadgesSection({ summary, colors, styles }) {
                     key={badge.id}
                     badge={badge}
                     colors={colors}
+                    formatOptions={formatOptions}
                     isLast={index === visibleItems.length - 1}
                 />
             ))}

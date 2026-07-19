@@ -9,7 +9,7 @@ import {
 import CoachComparisonRow from './CoachComparisonRow';
 import { getCoachMutedTextStyle } from '../styles/coachUi';
 
-export default function CoachComparisonCard({ summary, colors, styles }) {
+export default function CoachComparisonCard({ summary, colors, styles, formatOptions }) {
     const rows = useMemo(() => {
         if(!summary?.comparison) return [];
 
@@ -33,7 +33,7 @@ export default function CoachComparisonCard({ summary, colors, styles }) {
             },
             {
                 label: 'Volume',
-                value: formatSignedVolume(comparison.volumeDelta),
+                value: formatSignedVolume(comparison.volumeDelta, formatOptions),
                 rawValue: comparison.volumeDelta,
             },
             {
@@ -42,7 +42,7 @@ export default function CoachComparisonCard({ summary, colors, styles }) {
                 rawValue: comparison.volumeDeltaPercent,
             },
         ];
-    }, [summary]);
+    }, [summary, formatOptions]);
 
     if(!summary?.comparison) return null;
 

@@ -73,15 +73,40 @@ export function formatExerciseCount(value = 0) {
     return `${count} esercizi`;
 }
 
-export function formatVolume(value = 0) {
-    return `${formatNumber(value)} kg x rep`;
+function convertDisplayWeight(value = 0, options = {}) {
+    if(typeof options.convertWeight === 'function') {
+        return options.convertWeight(value);
+    }
+    return Number(value || 0);
 }
 
-export function formatSignedVolume(value = 0) {
-    return `${formatSignedNumber(value)} kg x rep`;
+function getDisplayWeightUnit(options = {}) {
+    return options.weightUnit || 'kg';
 }
 
-export function formatWeight(value = 0) {
+export function formatVolume(value = 0, options = {}) {
+    const converted = convertDisplayWeight(value, options);
+    const unit = getDisplayWeightUnit(options);
+
+    return `${formatNumber(converted)} ${unit} x rep`;
+}
+
+export function formatSignedVolume(value = 0, options = {}) {
+    const converted = convertDisplayWeight(value, options);
+    const rounded = Math.round(Number(converted || 0));
+    const formatted = rounded.toLocaleString('it-IT');
+    const unit = getDisplayWeightUnit(options);
+
+    if(rounded > 0) return `+${formatted} ${unit} x rep`;
+
+    return `${formatted} ${unit} x rep`;
+}
+
+export function formatWeight(value = 0, options = {}) {
+    if(typeof options.formatWeight === 'function') {
+        return options.formatWeight(value);
+    }
+
     return `${formatNumber(value)} kg`;
 }
 
@@ -93,13 +118,13 @@ export function formatReps(value = 0) {
     return `${formatNumber(count)} reps`;
 }
 
-export function formatBadgeValue(value, code) {
+export function formatBadgeValue(value, code, options = {}) {
     if(value === null || value === undefined) return null;
 
     const safeCode = String(code || '').toUpperCase();
 
-    if(safeCode.includes('VOLUME')) return formatVolume(value);
-    if(safeCode.includes('PESO') || safeCode.includes('WEIGHT')) return formatWeight(value);
+    if(safeCode.includes('VOLUME')) return formatVolume(value, options);
+    if(safeCode.includes('PESO') || safeCode.includes('WEIGHT')) return formatWeight(value, options);
     if(safeCode.includes('REP')) return formatReps(value);
 
     return formatNumber(value);

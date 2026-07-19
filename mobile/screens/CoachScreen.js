@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from 'react';
 import {
     ActivityIndicator,
     Image,
@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import BottomNav from "../components/BottomNav";
 import { logoCompact } from "../constants";
-import { useEffectiveDark } from "../context/SettingsContext";
+import { useEffectiveDark, useSettings } from "../context/SettingsContext";
 import { getStyles, getThemeColors } from "../styles/styles";
 import CoachSummaryMetrics from "../features/coach/components/CoachSummaryMetrics";
 import CoachWeekNavigator from "../features/coach/components/CoachWeekNavigator";
@@ -26,6 +26,14 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
     const isDarkMode = useEffectiveDark();
     const styles = getStyles(isDarkMode);
     const colors = getThemeColors(isDarkMode);
+
+    const { settings, convertWeight, formatWeight } = useSettings();
+
+    const formatOptions = useMemo(() => ({
+        weightUnit: settings.weightUnit,
+        convertWeight,
+        formatWeight,
+    }), [settings.weightUnit, convertWeight, formatWeight]);
 
     const {
         summary,
@@ -99,6 +107,7 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
                             summary={summary}
                             colors={colors}
                             styles={styles}
+                            formatOptions={formatOptions}
                         />
 
                         {hasSessions ? (
@@ -113,6 +122,7 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
                                     summary={summary}
                                     colors={colors}
                                     styles={styles}
+                                    formatOptions={formatOptions}
                                 />
 
                                 <CoachInsightsSection
@@ -125,12 +135,14 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
                                     summary={summary}
                                     colors={colors}
                                     styles={styles}
+                                    formatOptions={formatOptions}
                                 />
 
                                 <CoachBadgesSection
                                     summary={summary}
                                     colors={colors}
                                     styles={styles}
+                                    formatOptions={formatOptions}
                                 />
                             </>
                         ) : (

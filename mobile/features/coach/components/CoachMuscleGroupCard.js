@@ -12,7 +12,7 @@ import {
 } from '../utils/coachMuscleGroup';
 import { getCoachInnerCardStyle, getCoachMutedTextStyle } from '../styles/coachUi';
 
-export default function CoachMuscleGroupCard({ group, colors }) {
+export default function CoachMuscleGroupCard({ group, colors, formatOptions }) {
     const theme = getMuscleGroupStatusTheme(group.status, colors);
     const statusLabel = getMuscleGroupStatusLabel(group.status);
     const isNotTrained = group.status === 'none';
@@ -44,7 +44,7 @@ export default function CoachMuscleGroupCard({ group, colors }) {
                             { marginTop: 4 },
                         ]}
                     >
-                        {formatSetCount(group.sets)} · {formatExerciseCount(group.exerciseCount)} · volume {formatVolume(group.volume)}
+                        {formatSetCount(group.sets)} · {formatExerciseCount(group.exerciseCount)} · volume {formatVolume(group.volume, formatOptions)}
                     </Text>
 
                     {isNotTrained ? (

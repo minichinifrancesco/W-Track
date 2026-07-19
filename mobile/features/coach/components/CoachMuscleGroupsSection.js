@@ -13,7 +13,7 @@ const STATUS_ORDER = {
 
 const MUSCLE_GROUP_PREVIEW_LIMIT = 4;
 
-export default function CoachMuscleGroupsSection({ summary, colors, styles }) {
+export default function CoachMuscleGroupsSection({ summary, colors, styles, formatOptions }) {
     const groups = useMemo(() => {
         const items = summary?.muscleGroups || [];
 
@@ -58,6 +58,7 @@ export default function CoachMuscleGroupsSection({ summary, colors, styles }) {
                     key={group.name}
                     group={group}
                     colors={colors}
+                    formatOptions={formatOptions}
                 />
             ))}
 

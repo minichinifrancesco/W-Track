@@ -14,7 +14,7 @@ function getBadgeIcon(code) {
     return 'ribbon-outline';
 }
 
-function formatBadgeDetail(badge) {
+function formatBadgeDetail(badge, formatOptions) {
     const parts = [];
 
     if(badge.exerciseName) {
@@ -22,13 +22,13 @@ function formatBadgeDetail(badge) {
     }
 
     if(badge.value !== null && badge.value !== undefined) {
-        parts.push(formatBadgeValue(badge.value, badge.code));
+        parts.push(formatBadgeValue(badge.value, badge.code, formatOptions));
     }
     
     return parts.length > 0 ? parts.join(' · ') : 'Badge generale';
 }
 
-export default function CoachBadgeRow({ badge, colors, isLast = false }) {
+export default function CoachBadgeRow({ badge, colors, formatOptions, isLast = false }) {
     return (
         <View style={getCoachListRowStyle(colors, isLast)}>
             <View style={getCoachIconBubbleStyle(colors)}>
@@ -58,7 +58,7 @@ export default function CoachBadgeRow({ badge, colors, isLast = false }) {
                     }}
                     numberOfLines={1}
                 >
-                    {formatBadgeDetail(badge)}
+                    {formatBadgeDetail(badge, formatOptions)}
                 </Text>
             </View>
         </View>

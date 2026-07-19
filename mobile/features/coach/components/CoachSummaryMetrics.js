@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { formatDuration, formatVolume } from "../utils/coachFormatter";
 import CoachMetricCard from "./CoachMetricCard";
 
-export default function CoachSummaryMetrics({ summary, colors, styles }) {
+export default function CoachSummaryMetrics({ summary, colors, styles, formatOptions }) {
     const metrics = useMemo(() => {
         if(!summary) return [];
 
@@ -25,11 +25,11 @@ export default function CoachSummaryMetrics({ summary, colors, styles }) {
             },
             {
                 label: 'Volume',
-                value: formatVolume(summary.totals.volume),
+                value: formatVolume(summary.totals.volume, formatOptions),
                 icon: 'trending-up-outline',
             },
         ];
-    }, [summary]);
+    }, [summary, formatOptions]);
 
     if(!summary) return null;
 
