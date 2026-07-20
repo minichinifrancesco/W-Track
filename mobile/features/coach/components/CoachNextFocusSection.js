@@ -1,11 +1,12 @@
-import React from 'react';
-import { Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
     getCoachIconBubbleStyle,
     getCoachListRowStyle,
     getCoachMutedTextStyle,
 } from '../styles/coachUi';
+import CoachMuscleCoverageModal from './CoachMuscleCoverageModal';
 
 function getStatusLabel(status) {
     if(status === 'none') return 'Non allenato';
@@ -45,8 +46,9 @@ function getFocusTheme(status, colors) {
     };
 }
 
-export default function CoachNextFocusSection({ summary, colors, styles }) {
+export default function CoachNextFocusSection({ summary, colors, styles, formatOptions }) {
     const nextFocus = summary?.nextFocus;
+    const [coverageVisible, setCoverageVisible] = useState(false);
 
     if(!nextFocus) return null;
 
@@ -110,6 +112,47 @@ export default function CoachNextFocusSection({ summary, colors, styles }) {
                     </View>
                 );
             })}
+
+            <Pressable
+                onPress={() => setCoverageVisible(true)}
+                style={{
+                    marginTop: 12,
+                    borderWidth: 1,
+                    borderColor: colors.accentGreenBorder,
+                    backgroundColor: colors.accentGreenBg,
+                    borderRadius: 8,
+                    paddingVertical: 10,
+                    paddingHorizontal: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                }}
+            >
+                <Ionicons
+                    name="analytics-outline"
+                    size={18}
+                    color={colors.primary}
+                />
+
+                <Text
+                    style={{
+                        color: colors.primary,
+                        fontSize: 13,
+                        fontWeight: '800',
+                    }}
+                >
+                    Analizza copertura muscolare
+                </Text>
+            </Pressable>
+
+            <CoachMuscleCoverageModal
+                visible={coverageVisible}
+                onClose={() => setCoverageVisible(false)}
+                summary={summary}
+                colors={colors}
+                formatOptions={formatOptions}
+            />
         </View>
     );
 }

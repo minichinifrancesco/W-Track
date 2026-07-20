@@ -73,7 +73,7 @@ export function buildCoachNextFocus(muscleGroups: CoachMuscleGroupDto[]) : Coach
 
     if(groups.length === 0) {
         return {
-            title: 'Focus consigliato',
+            title: 'Copertura equilibrata',
             message: 'La copertura muscolare della settimana è equilibrata. Mantieni questa distribuzione.',
             groups,
         };

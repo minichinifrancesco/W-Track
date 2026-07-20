@@ -16,7 +16,6 @@ import CoachSummaryMetrics from "../features/coach/components/CoachSummaryMetric
 import CoachWeekNavigator from "../features/coach/components/CoachWeekNavigator";
 import CoachComparisonCard from "../features/coach/components/CoachComparisonCard";
 import CoachInsightsSection from "../features/coach/components/CoachInsightsSection";
-import CoachMuscleGroupsSection from "../features/coach/components/CoachMuscleGroupsSection";
 import CoachWeekDayStrip from "../features/coach/components/CoachWeekDayStrip";
 import CoachBadgesSection from "../features/coach/components/CoachBadgesSection";
 import CoachEmptyState from "../features/coach/components/CoachEmptyState";
@@ -117,6 +116,7 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
                                     summary={summary}
                                     colors={colors}
                                     styles={styles}
+                                    formatOptions={formatOptions}
                                 />
 
                                 <CoachWeekDayStrip
@@ -136,13 +136,6 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
                                     summary={summary}
                                     colors={colors}
                                     styles={styles}
-                                />
-                                
-                                <CoachMuscleGroupsSection
-                                    summary={summary}
-                                    colors={colors}
-                                    styles={styles}
-                                    formatOptions={formatOptions}
                                 />
 
                                 <CoachBadgesSection

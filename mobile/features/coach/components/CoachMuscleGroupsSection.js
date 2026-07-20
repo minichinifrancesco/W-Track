@@ -1,8 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import React, { useMemo } from 'react';
+import { View } from 'react-native';
 import CoachMuscleGroupCard from './CoachMuscleGroupCard';
-import CoachShowMoreButton from './CoachShowMoreButton';
-import { getCoachMutedTextStyle } from '../styles/coachUi';
 
 const STATUS_ORDER = {
     none: 0,
@@ -11,9 +9,7 @@ const STATUS_ORDER = {
     high: 3
 };
 
-const MUSCLE_GROUP_PREVIEW_LIMIT = 4;
-
-export default function CoachMuscleGroupsSection({ summary, colors, styles, formatOptions }) {
+export default function CoachMuscleGroupsSection({ summary, colors, formatOptions }) {
     const groups = useMemo(() => {
         const items = summary?.muscleGroups || [];
 
@@ -27,33 +23,11 @@ export default function CoachMuscleGroupsSection({ summary, colors, styles, form
         });
     }, [summary]);
 
-    const [expanded, setExpanded] = useState(false);
-    useEffect(() => {
-        setExpanded(false);
-    }, [summary?.period?.start]);
-
-    const hasHiddenGroups = groups.length > MUSCLE_GROUP_PREVIEW_LIMIT;
-    const visibleGroups = expanded ? groups : groups.slice(0, MUSCLE_GROUP_PREVIEW_LIMIT);
-
     if(groups.length === 0) return null;
 
     return (
-        <View style={styles.workoutCard}>
-            <Text style={styles.sectionTitle}>Gruppi Muscolari</Text>
-
-            <Text 
-                style={[
-                    getCoachMutedTextStyle(colors),
-                    {
-                        marginTop: 6,
-                        marginBottom: 2,
-                    },
-                ]}
-            >
-                Copertura muscolare del periodo selezionato
-            </Text>
-
-            {visibleGroups.map((group) => (
+        <View style={{ paddingTop: 14 }}>
+            {groups.map((group) => (
                 <CoachMuscleGroupCard
                     key={group.name}
                     group={group}
@@ -61,14 +35,6 @@ export default function CoachMuscleGroupsSection({ summary, colors, styles, form
                     formatOptions={formatOptions}
                 />
             ))}
-
-            {hasHiddenGroups ? (
-                <CoachShowMoreButton
-                    colors={colors}
-                    expanded={expanded}
-                    onPress={() => setExpanded((current) => !current)}
-                />
-            ) : null}
         </View>
     );
 }
