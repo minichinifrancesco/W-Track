@@ -26,6 +26,20 @@ export class CoachInsightDto {
     relatedMuscleGroup!: string | null;
 }
 
+export class CoachNextFocusGroupDto {
+    name!: string;
+    status!: CoachMuscleGroupStatus;
+    sets!: number;
+    lastTrainedAt!: string | null;
+    reason!: string;
+}
+
+export class CoachNextFocusDto {
+    title!: string;
+    message!: string;
+    groups!: CoachNextFocusGroupDto[];
+}
+
 export class WeeklyCoachSummaryDto {
     period!: { start: string; end: string; label: string };
     previousPeriod!: { start: string; end: string; label: string };
@@ -35,6 +49,7 @@ export class WeeklyCoachSummaryDto {
     days!: CoachDayDto[];
     badges!: CoachBadgeSummaryDto;
     insights!: CoachInsightDto[];
+    nextFocus!: CoachNextFocusDto;
 }
 
 export class CoachDayDto {

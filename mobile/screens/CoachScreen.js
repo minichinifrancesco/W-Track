@@ -20,6 +20,7 @@ import CoachMuscleGroupsSection from "../features/coach/components/CoachMuscleGr
 import CoachWeekDayStrip from "../features/coach/components/CoachWeekDayStrip";
 import CoachBadgesSection from "../features/coach/components/CoachBadgesSection";
 import CoachEmptyState from "../features/coach/components/CoachEmptyState";
+import CoachNextFocusSection from '../features/coach/components/CoachNextFocusSection';
 import { useWeeklyCoachSummary } from "../features/coach/hooks/useWeeklyCoachSummary";
 
 export default function CoachScreen ({ authToken, currentScreen, setCurrentScreen }) {
@@ -112,6 +113,12 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
 
                         {hasSessions ? (
                             <>
+                                <CoachNextFocusSection
+                                    summary={summary}
+                                    colors={colors}
+                                    styles={styles}
+                                />
+
                                 <CoachWeekDayStrip
                                     summary={summary}
                                     colors={colors}
