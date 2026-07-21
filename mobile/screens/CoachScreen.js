@@ -112,13 +112,6 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
 
                         {hasSessions ? (
                             <>
-                                <CoachNextFocusSection
-                                    summary={summary}
-                                    colors={colors}
-                                    styles={styles}
-                                    formatOptions={formatOptions}
-                                />
-
                                 <CoachWeekDayStrip
                                     summary={summary}
                                     colors={colors}
@@ -136,6 +129,13 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
                                     summary={summary}
                                     colors={colors}
                                     styles={styles}
+                                />
+
+                                <CoachNextFocusSection
+                                    summary={summary}
+                                    colors={colors}
+                                    styles={styles}
+                                    formatOptions={formatOptions}
                                 />
 
                                 <CoachBadgesSection
