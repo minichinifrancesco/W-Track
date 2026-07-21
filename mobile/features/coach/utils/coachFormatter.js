@@ -129,3 +129,16 @@ export function formatBadgeValue(value, code, options = {}) {
 
     return formatNumber(value);
 }
+
+export function formatBadgeDate(value) {
+    if(!value) return 'Data non disponibile';
+
+    const date = new Date(value);
+    if(Number.isNaN(date.getTime())) return 'Data non disponibile';
+
+    return date.toLocaleDateString('it-IT', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+    });
+}

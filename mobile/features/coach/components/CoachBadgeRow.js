@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { formatBadgeValue } from '../utils/coachFormatter';
+import { formatBadgeValue, formatBadgeDate } from '../utils/coachFormatter';
 import { getCoachIconBubbleStyle, getCoachListRowStyle } from '../styles/coachUi';
 
 function getBadgeIcon(code) {
@@ -28,7 +28,7 @@ function formatBadgeDetail(badge, formatOptions) {
     return parts.length > 0 ? parts.join(' · ') : 'Badge generale';
 }
 
-export default function CoachBadgeRow({ badge, colors, formatOptions, isLast = false }) {
+export default function CoachBadgeRow({ badge, colors, formatOptions, isLast = false, showDate = false }) {
     return (
         <View style={getCoachListRowStyle(colors, isLast)}>
             <View style={getCoachIconBubbleStyle(colors)}>
@@ -56,9 +56,11 @@ export default function CoachBadgeRow({ badge, colors, formatOptions, isLast = f
                         fontSize: 12,
                         marginTop: 2,
                     }}
-                    numberOfLines={1}
+                    numberOfLines={2}
                 >
-                    {formatBadgeDetail(badge, formatOptions)}
+                    {showDate
+                        ? `${formatBadgeDetail(badge, formatOptions)} · Ottenuto il: ${formatBadgeDate(badge.earnedAt)}`
+                        : formatBadgeDetail(badge, formatOptions)}
                 </Text>
             </View>
         </View>
