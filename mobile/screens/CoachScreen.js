@@ -20,7 +20,9 @@ import CoachWeekDayStrip from "../features/coach/components/CoachWeekDayStrip";
 import CoachBadgesSection from "../features/coach/components/CoachBadgesSection";
 import CoachEmptyState from "../features/coach/components/CoachEmptyState";
 import CoachNextFocusSection from '../features/coach/components/CoachNextFocusSection';
+import CoachExportButton from '../features/coach/components/CoachExportButton';
 import { useWeeklyCoachSummary } from "../features/coach/hooks/useWeeklyCoachSummary";
+import { useCoachReportExport } from '../features/coach/hooks/useCoachReportExport';
 
 export default function CoachScreen ({ authToken, currentScreen, setCurrentScreen }) {
     const isDarkMode = useEffectiveDark();
@@ -49,6 +51,18 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
 
     const hasSessions = Number(summary?.totals?.sessions || 0) > 0;
 
+    const {
+        exporting,
+        canExportCoachReport,
+        exportCoachReport,
+    } = useCoachReportExport({
+        summary,
+        loading,
+        error,
+        hasSessions,
+        formatOptions,
+    });
+
     const goToHome = () => {
         setCurrentScreen('home');
     };
@@ -66,6 +80,13 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
                         </Text>
                     </View>
                 </View>
+
+                <CoachExportButton
+                    disabled={!canExportCoachReport}
+                    exporting={exporting}
+                    colors={colors}
+                    onPress={exportCoachReport}
+                />
             </View>
             <ScrollView
                 style={styles.content}
@@ -73,7 +94,7 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
                     <RefreshControl refreshing={refreshing} onRefresh={refresh}/>
                 }
             >
-                <CoachWeekNavigator 
+                <CoachWeekNavigator
                     styles={styles}
                     isCurrentWeek={isCurrentWeek}
                     onPreviousWeek={goToPreviousWeek}
@@ -158,7 +179,7 @@ export default function CoachScreen ({ authToken, currentScreen, setCurrentScree
                 ) : null}
             </ScrollView>
 
-            <BottomNav 
+            <BottomNav
                 currentScreen={currentScreen}
                 setCurrentScreen={setCurrentScreen}
             />
