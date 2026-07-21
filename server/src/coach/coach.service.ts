@@ -58,7 +58,7 @@ export class CoachService {
             muscleGroups,
             days,
             badges,
-            insights: buildCoachInsights(totals, previousTotals, muscleGroups, badges),
+            insights: buildCoachInsights(totals, previousTotals, muscleGroups),
             nextFocus: buildCoachNextFocus(muscleGroups),
         };
 

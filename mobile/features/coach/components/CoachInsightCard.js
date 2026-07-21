@@ -68,24 +68,11 @@ export default function CoachInsightCard({ insight, colors }) {
                     <Text 
                         style={[
                             getCoachMutedTextStyle(colors),
-                            { marginTop: 4},
+                            { marginTop: 4 },
                         ]}
                     >
                         {insight.message}
                     </Text>
-
-                    {insight.relatedMuscleGroup ? (
-                        <Text 
-                            style={{
-                                color: theme.color,
-                                fontSize: 12,
-                                fontWeight: '700',
-                                marginTop: 8,
-                            }}
-                        >
-                            {insight.relatedMuscleGroup}
-                        </Text>
-                    ) : null}
                 </View>
             </View>
         </View>

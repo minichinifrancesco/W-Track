@@ -35,14 +35,14 @@ export default function CoachInsightsSection({ summary, colors, styles }) {
                     marginBottom: 2,
                 }}
             >
-                Indicazioni generate dal riepilogo del periodo
+                Lettura generale del periodo selezionato
             </Text>
 
             {insights.map((insight, index) => (
                 <CoachInsightCard
-                    key={`${insight.type}-${insight.relatedMuscleGroup || index}`}
+                    key={`${insight.type}-${index}`}
                     insight={insight}
-                    colors= {colors}
+                    colors={colors}
                 />
             ))}
         </View>

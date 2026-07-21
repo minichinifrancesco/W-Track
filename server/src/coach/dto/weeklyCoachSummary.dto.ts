@@ -23,7 +23,6 @@ export class CoachInsightDto {
     severity!: CoachInsightSeverity;
     title!: string;
     message!: string;
-    relatedMuscleGroup!: string | null;
 }
 
 export class CoachNextFocusGroupDto {
